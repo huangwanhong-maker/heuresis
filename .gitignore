@@ -1,0 +1,28 @@
+# Build outputs
+build/
+out/
+cmake-build-*/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.pdb
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Editors and operating systems
+.vs/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
