@@ -9,10 +9,16 @@
 //   others  — any type with the same call (a cluster, a device, a queue of jobs) at the edges of the
 //             infrastructure; the core supplies these two and the simulated workers of workers.hpp.
 //
-// The budget counts evaluations, their cost, or both; a target stops the run when the best feasible value
-// reaches it. The outcome holds the best individual by Deb's rule (ties to the earlier ticket), what was spent,
-// each improvement of the best (the anytime curve, from which analysis/ reads runtimes) and why the run ended.
-// A Record keeps every individual in the order told, with its origin: the run's genealogy and enough to replay it.
+// The budget counts evaluations, their cost, or both, and for the simulated workers of workers.hpp their simulated
+// time; a target stops the run when the best feasible value reaches it. The outcome holds the best individual by
+// Deb's rule (ties to the earlier ticket), what was spent, each improvement of the best (the anytime curve, from which
+// analysis/ reads runtimes) and why the run ended. A Record keeps every individual in the order told, with its origin:
+// the run's genealogy and enough to replay it.
+//
+// Errors. An exception the objective throws (a std::exception) is its evaluation's failure, with what() as the
+// reason (decision 0003 §2.3): the algorithm is told it like any other failure, and the run goes on. An exception
+// the algorithm's ask or tell throws ends the run with Ending::error and its message; the outcome keeps what was
+// spent and found until then, and the record what was told. Exceptions of other types are not caught.
 
 #pragma once
 
@@ -22,9 +28,11 @@
 #include <calx/scheduler/thread_pool.hpp>
 
 #include <cmath>
+#include <exception>
 #include <functional>
 #include <limits>
 #include <optional>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -34,14 +42,17 @@ struct Budget {
   double evaluations = std::numeric_limits<double>::infinity();
   double cost = std::numeric_limits<double>::infinity();
   double target = -std::numeric_limits<double>::infinity();  // stop when the best feasible value ≤ target
+  double time = std::numeric_limits<double>::infinity();     // simulated time, honoured by run_asynchronous
 };
 
-enum class Ending : std::uint8_t { budget, target, stopped, stalled };
+enum class Ending : std::uint8_t { budget, target, stopped, stalled, error };
 
-// An improvement of the best: after `evaluations` evaluations costing `cost`, the best value was `value`.
+// An improvement of the best: after `evaluations` evaluations costing `cost`, the best value was `value`; `time` is
+// the simulated time at which it arrived (run_asynchronous), 0 in a run without simulated time.
 struct Progress {
   double evaluations = 0, cost = 0, value = 0;
   Ticket ticket = 0;
+  double time = 0;
 };
 
 template <class G>
@@ -51,6 +62,7 @@ struct Outcome {
   double time = 0;  // simulated wall time, for asynchronous runs (workers.hpp)
   std::vector<Progress> progress;
   Ending ending = Ending::budget;
+  std::string error;  // what the algorithm threw, when the ending is Ending::error
 };
 
 template <class G>
@@ -59,17 +71,21 @@ struct Record {
 };
 
 // Calls the objective on a candidate: f(g, ticket) if it takes the ticket, else f(g); a number becomes a scalar
-// evaluation.
+// evaluation, and a std::exception thrown becomes a failure whose reason is its what().
 template <class G, class F>
 Evaluation evaluate(F& f, const Candidate<G>& c) {
-  if constexpr (std::is_invocable_v<F&, const G&, Ticket>) {
-    using R = std::invoke_result_t<F&, const G&, Ticket>;
-    if constexpr (std::is_convertible_v<R, Evaluation>) return f(c.genotype, c.ticket);
-    else return scalar(static_cast<double>(f(c.genotype, c.ticket)));
-  } else {
-    using R = std::invoke_result_t<F&, const G&>;
-    if constexpr (std::is_convertible_v<R, Evaluation>) return f(c.genotype);
-    else return scalar(static_cast<double>(f(c.genotype)));
+  try {
+    if constexpr (std::is_invocable_v<F&, const G&, Ticket>) {
+      using R = std::invoke_result_t<F&, const G&, Ticket>;
+      if constexpr (std::is_convertible_v<R, Evaluation>) return f(c.genotype, c.ticket);
+      else return scalar(static_cast<double>(f(c.genotype, c.ticket)));
+    } else {
+      using R = std::invoke_result_t<F&, const G&>;
+      if constexpr (std::is_convertible_v<R, Evaluation>) return f(c.genotype);
+      else return scalar(static_cast<double>(f(c.genotype)));
+    }
+  } catch (const std::exception& e) {
+    return failure(e.what());
   }
 }
 
@@ -104,15 +120,15 @@ class Pool {
 template <class G>
 class Elite {
  public:
-  // Returns true when the individual is a new best.
-  bool offer(const Individual<G>& x, double evaluations, double cost) {
+  // Returns true when the individual is a new best; `time` is the simulated time of its arrival, if any.
+  bool offer(const Individual<G>& x, double evaluations, double cost, double time = 0) {
     if (best_) {
       if (better(best_->evaluation, x.evaluation)) return false;
       if (!better(x.evaluation, best_->evaluation) && !(x.ticket < best_->ticket)) return false;  // a tie: the earlier ticket stays
     }
     const double before = value();
     best_ = x;
-    if (value() < before) progress_.push_back({evaluations, cost, value(), x.ticket});
+    if (value() < before) progress_.push_back({evaluations, cost, value(), x.ticket, time});
     return true;
   }
   const std::optional<Individual<G>>& best() const { return best_; }
@@ -125,8 +141,9 @@ class Elite {
   std::vector<Progress> progress_;
 };
 
-// Runs the search until the budget is spent, the target is reached, the algorithm stops or offers nothing.
-// `batch` caps the candidates asked at once (the executor's width); the budget of evaluations is never exceeded.
+// Runs the search until the budget is spent, the target is reached, the algorithm stops, offers nothing or throws.
+// `batch` caps the candidates asked at once (the executor's width); the budget of evaluations is never exceeded. The
+// budget's simulated time has no meaning here and is ignored; progress carries time 0.
 template <Optimiser A, class F, class Executor = Serial>
 Outcome<typename A::Genotype> run(A& algorithm, F&& f, const Budget& budget = {}, Executor&& executor = Executor{}, std::size_t batch = unlimited, Record<typename A::Genotype>* record = nullptr) {
   using G = typename A::Genotype;
@@ -138,7 +155,14 @@ Outcome<typename A::Genotype> run(A& algorithm, F&& f, const Budget& budget = {}
     if (algorithm.stopped()) { out.ending = Ending::stopped; break; }
     std::size_t limit = batch;
     if (std::isfinite(budget.evaluations)) limit = std::min(limit, static_cast<std::size_t>(std::ceil(budget.evaluations - out.evaluations)));
-    std::vector<Candidate<G>> candidates = algorithm.ask(limit);
+    std::vector<Candidate<G>> candidates;
+    try {
+      candidates = algorithm.ask(limit);
+    } catch (const std::exception& e) {
+      out.ending = Ending::error;
+      out.error = e.what();
+      break;
+    }
     if (candidates.empty()) { out.ending = algorithm.stopped() ? Ending::stopped : Ending::stalled; break; }
     std::vector<Evaluation> evaluations = executor(std::span<const Candidate<G>>(candidates), f);
     std::vector<Told> told(candidates.size());
@@ -150,7 +174,13 @@ Outcome<typename A::Genotype> run(A& algorithm, F&& f, const Budget& budget = {}
       elite.offer(x, out.evaluations, out.cost);
       if (record) record->told.push_back(std::move(x));
     }
-    algorithm.tell(std::span<const Told>(told));
+    try {
+      algorithm.tell(std::span<const Told>(told));
+    } catch (const std::exception& e) {
+      out.ending = Ending::error;
+      out.error = e.what();
+      break;
+    }
   }
   out.best = elite.best();
   out.progress = elite.progress();

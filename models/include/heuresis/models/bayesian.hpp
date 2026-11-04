@@ -5,7 +5,9 @@
 // Welch 1998; Shahriari, Swersky, Wang, Adams and de Freitas 2016, "Taking the human out of the loop: a review of
 // Bayesian optimization", Proc. IEEE 104, 148–175). The box is mapped onto the unit cube and the values standardised
 // (mean 0, standard deviation 1) before the surrogate sees them, so that one prior on the hyperparameters serves every
-// problem.
+// problem. The surrogate is therefore in the cube's coordinates and standardised units; `standardisation()` gives the
+// mean and deviation by which the values were scaled, and `to_unit` the point's coordinates in the cube, so that a
+// posterior μ, σ² at u is y = mean + deviation · μ, of variance deviation² · σ², in the problem's units.
 //
 // As an ask–tell algorithm it is asynchronous: an initial design of uniform points (keyed by their index) is offered
 // at once; afterwards each ask offers at most `breadth` points chosen from the current state (decision 0003 §2.2).
@@ -39,6 +41,15 @@ using heuresis::variation::Box;
 using heuresis::variation::Real;
 
 enum class Lie : std::uint8_t { kriging_believer, constant_liar };
+
+// How the values told were scaled for the surrogate: z = (y − mean)/deviation, the sample mean and standard deviation
+// (n − 1) of the values that did not fail; (0, 1) before two such values.
+struct Standardisation {
+  double mean = 0, deviation = 1;
+  double value(double z) const { return mean + deviation * z; }
+  // A posterior of the surrogate in the problem's units.
+  GaussianProcess::Posterior posterior(const GaussianProcess::Posterior& p) const { return {mean + deviation * p.mean, deviation * deviation * p.variance}; }
+};
 
 struct BayesianOptions {
   std::size_t initial = 0;       // the initial design; 0: 2d + 2; at least 2
@@ -121,6 +132,20 @@ class BayesianOptimisation {
     for (std::size_t i = 0; i < x.size(); i++) x[i] = box_.lower[i] + u[i] * box_.width(i);
     return x;
   }
+  std::vector<double> to_unit(std::span<const double> x) const {
+    std::vector<double> u(x.size());
+    for (std::size_t i = 0; i < u.size(); i++) u[i] = (x[i] - box_.lower[i]) / box_.width(i);
+    return u;
+  }
+  // The scaling of the values for the surrogate, as it stands for what has been told.
+  Standardisation standardisation() const {
+    double s = 0, s2 = 0, n = 0;
+    for (const auto& [u, y] : told_)
+      if (!std::isnan(y)) { s += y; s2 += y * y; n++; }
+    if (n == 0) return {0, 1};
+    const double mu = s / n, var = n > 1 ? (s2 - n * mu * mu) / (n - 1) : 0;
+    return {mu, var > 0 ? std::sqrt(var) : 1};
+  }
   const Kernel& kernel() const { return kernel_; }
   double noise() const { return noise_; }
 
@@ -132,14 +157,6 @@ class BayesianOptimisation {
     const auto t = heuresis::search::make_ticket(draws_.island(), serial_++);
     pending_[t] = u;
     return {t, to_box(u), heuresis::search::Origin{operation, {}}};
-  }
-  std::pair<double, double> standardisation() const {
-    double s = 0, s2 = 0, n = 0;
-    for (const auto& [u, y] : told_)
-      if (!std::isnan(y)) { s += y; s2 += y * y; n++; }
-    if (n == 0) return {0, 1};
-    const double mu = s / n, var = n > 1 ? (s2 - n * mu * mu) / (n - 1) : 0;
-    return {mu, var > 0 ? std::sqrt(var) : 1};
   }
   double worst_value() const {
     double w = -std::numeric_limits<double>::infinity();

@@ -1,7 +1,8 @@
 // Checks of heuresis analysis against small examples computed by hand: runtimes and anytime values read from
 // progress; the expected running time; the distribution of runtimes over runs and targets; Clopper and Pearson's
 // interval against its closed forms and published values; quantiles of anytime curves; performance and data
-// profiles; the permutation test's p-values; and a runtime read from a real run.
+// profiles; the permutation test's p-values; runs on two problems of different optima pooled by their gaps to f*; and
+// a runtime read from a real run.
 
 #include <heuresis/analysis/analysis.hpp>
 #include <heuresis/benchmarks/benchmarks.hpp>
@@ -49,6 +50,21 @@ int main() {
     double dev = 0;
     for (std::size_t i = 0; i < F.size(); i++) dev = std::max(dev, std::fabs(F[i] - expected[i]));
     s.check("the empirical distribution of runtimes over (run, target) pairs", dev, 1e-15);
+  }
+
+  // Two problems of different optima, f* = 5 and f* = −3, pooled by their gaps: targets are precisions Δf.
+  {
+    const Run a = make_run({{2, 15}, {8, 6}, {20, 5.001}}, 30), b = make_run({{1, 7}, {5, -2}, {12, -2.95}}, 40);
+    const std::vector<Run> gaps{relative_to(a, 5), relative_to(b, -3)}, raw{a, b};
+    const std::vector<double> precisions{1, 0.01}, budgets{1, 5, 8, 12, 20, 100};
+    // Runtimes of the four pairs: a reaches Δf ≤ 1 at 8 and ≤ 0.01 at 20; b reaches ≤ 1 at 5 and never ≤ 0.01.
+    const auto F = runtime_distribution(gaps, precisions, budgets), R = runtime_distribution(raw, precisions, budgets);
+    const std::vector<double> expected{0, 0.25, 0.5, 0.5, 0.75, 0.75};
+    double dev = 0;
+    for (std::size_t i = 0; i < F.size(); i++) dev = std::max(dev, std::fabs(F[i] - expected[i]));
+    s.check("runs relative to f*: the pooled distribution of runtimes to precisions 1 and 0.01", dev, 1e-15);
+    s.require("… which the values themselves, not shifted, misread (b \"reaches\" both at 5, a neither)", R[1] == 0.5 && R.back() == 0.5);
+    s.check("… and ERT to Δf ≤ 1 over both problems: (8 + 5)/2 = 6.5", expected_running_time(gaps, 1).value - 6.5, 1e-15);
   }
 
   {

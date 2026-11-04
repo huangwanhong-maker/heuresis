@@ -4,7 +4,7 @@
 
 ## 1. Concepts
 
-An evolution strategy searches ℝⁿ with a distribution it adapts. The (1+1)-ES keeps one point and one step size: a Gaussian step replaces the point when it is no worse, and the step size grows after a success and shrinks after a failure so that about one step in five succeeds (Rechenberg's rule). On the sphere this converges linearly, and σ follows the distance to the optimum.
+An evolution strategy searches ℝⁿ with a distribution it adapts. The (1+1)-ES keeps one point and one step size: a Gaussian step replaces the point when it is no worse, and the step size grows after a success and shrinks after a failure so that about one step in five succeeds (Rechenberg's rule). On the sphere this converges linearly, and σ follows the distance to the optimum. It stops once σ has fallen twelve decades below its start (by default), so that restarting it (`search::Restarts`) turns a local search into a global one on multimodal functions.
 
 CMA-ES samples λ points from N(m, σ²C), ranks them, and moves m towards the best, C towards the directions in which the best steps lay (the evolution path p_c for successive steps, the rank-μ update for the steps of one generation, and with active weights away from the worst), and σ by the length of a second path p_σ, whitened by C^{−1/2}: longer than expected under random selection means consecutive steps agree and σ should grow, shorter means they cancel. The update sees the objective only through the ranking, so the run is the same on g ∘ f for any increasing g. Because p_σ is whitened by the symmetric root of C, the update commutes with every map x ↦ αRx + b (R orthogonal), the state mapped with it; with σ held fixed it commutes with every affine map. For general linear maps, CSA is invariant only up to the rotations by which C^{−1/2} differs between generations, and the checks show where each invariance holds.
 
@@ -20,7 +20,7 @@ Differential evolution moves a population by differences of its members, so its 
 |---|---|
 | `cma_es.hpp` | `CmaParameters::tutorial(n, λ, active)` (the tutorial's Table 1), `.separable()` (Ros and Hansen 2008), `.eigen_gap()`; `CmaState` (m, σ, C, p_c, p_σ, B, D, C^{−1/2}, the lazy decomposition); `cma_update(parameters, state, ranked)`, one generation's transition as a pure function of the ranked points; `Cma(mean, σ, CmaOptions, Draws)`, the ask–tell algorithm with `CmaBounds::{transform, repair}`, `inject`, `emigrants`, `mean_point`, `stop_reason()` (`CmaStop`: generations, TolX, TolFun, ConditionCov, NoEffectAxis, NoEffectCoord, Stagnation, TolUpSigma) |
 | `restarts.hpp` | `CmaRestarts(RestartOptions{ipop or bipop, start box, σ₀, increase, max_large_runs, cma options}, Draws)`: restarts with tickets continuing and each run's streams keyed by its number |
-| `one_plus_one.hpp` | `OnePlusOneEs(x₀, σ, OnePlusOneOptions{target_success, damping, bounds, repair, min_sigma}, Draws)`: the one-fifth rule in Kern et al.'s smooth form |
+| `one_plus_one.hpp` | `OnePlusOneEs(x₀, σ, OnePlusOneOptions{target_success, damping, bounds, repair, min_sigma}, Draws)`: the one-fifth rule in Kern et al.'s smooth form; stopped once σ < `min_sigma`, by default 10⁻¹² σ₀ (0: never) |
 | `differential_evolution.hpp` | `DifferentialEvolution(box, DeOptions{population, F, CR, DeMutation, DeCrossover, midpoint or repair}, Draws)`; `Shade(box, ShadeOptions{population, memory, p_max}, Draws)`; each trial's origin names its target and the members its mutant read |
 | `strategies.hpp` | the module's headers |
 
@@ -28,7 +28,7 @@ All the algorithms are generational: a generation is asked whole, and updated on
 
 ## 3. Checks
 
-`check_heuresis_strategies` (68):
+`check_heuresis_strategies` (71):
 
 - **CMA-ES against pycma 4.5.0**, one generation at a time, over 8 generations in 6-D. Each generation loads pycma's state before `tell`, including the C^{−1/2} pycma uses (from its lazy eigendecomposition), tells our `cma_update` the same points, and compares the state after. The constants are pycma's (its c_σ, c_μ and d_σ differ from the tutorial's), the update rules ours. Fixtures: `tests/fixtures/make_cma_fixtures.py` writes `tests/fixtures/cma_fixture.hpp`.
   - Without active weights: everything agrees to 5 × 10⁻¹⁶.
@@ -51,7 +51,10 @@ All the algorithms are generational: a generation is asked whole, and updated on
   - IPOP needs 136,120 evaluations in 7 runs, λ doubling each time;
   - BIPOP needs 149,396 in 19 runs;
   - tickets stay unique across runs.
-- **The (1+1)-ES:** reaches 10⁻¹⁰ on the 10-D sphere in 873 evaluations, converging linearly. log σ falls with log ‖x‖ (ratio within 15% of 1), so the success rate settles below 1/5, by the rate of convergence.
+- **The (1+1)-ES:**
+  - reaches 10⁻¹⁰ on the 10-D sphere in 873 evaluations, converging linearly. log σ falls with log ‖x‖ (ratio within 15% of 1), so the success rate settles below 1/5, by the rate of convergence;
+  - stops by its default `min_sigma` once σ < 10⁻¹² σ₀ (1,915 evaluations on the 10-D sphere), and never with `min_sigma` = 0;
+  - restarted from uniform points by `search::Restarts`, it reaches better minima of the 10-D Rastrigin function than one run in the same 10⁵ evaluations, for each of 5 seeds (at least 55 runs; the best at most 0.45 of one run's).
 - **Differential evolution:**
   - with CR = 1, every trial is x_r1 + F(x_r2 − x_r3) exactly, or halfway from its target to a crossed bound;
   - with CR = 0, exactly one coordinate (j_rand) comes from the mutant;

@@ -35,9 +35,9 @@ The contracts ([decision 0003](development/decisions/0003-the-search-process-and
 
 | Module | Content | Status |
 |---|---|---|
-| [`search`](search/) | Evaluations and Deb's order; keyed draws; the ask–tell protocol; drivers on one thread, a pool, simulated asynchronous workers; records; random search | draft |
+| [`search`](search/) | Evaluations and Deb's order; keyed draws; the ask–tell protocol; drivers on one thread, a pool, simulated asynchronous workers (with budgets of simulated time); records; independent restarts of any algorithm; random search | draft |
 | [`variation`](variation/) | Real boxes and repairs, bit strings, integer boxes, permutations; their mutations, crossovers and distances | draft |
-| [`selection`](selection/) | Tournaments, truncation, ranking, universal sampling, Boltzmann weights, lexicase; comma, plus, generational and steady-state survivors | draft |
+| [`selection`](selection/) | Tournaments with a rule for ties, truncation, ranking, roulette and universal sampling, Boltzmann weights, lexicase; comma, plus, generational and steady-state survivors | draft |
 | [`benchmarks`](benchmarks/) | Pseudo-Boolean, continuous, constrained, multi-objective, permutation and repertoire problems with known optima, fronts and hypervolumes | draft |
 | [`genetic`](genetic/) | Evolutionary algorithms on bit strings and any representation: (1+1), (1+λ), (μ+1), the (1+(λ,λ)) GA, generational and steady-state GAs | draft |
 | [`local`](local/) | Hill climbing, iterated local search, tabu search, variable neighbourhood descent, 2-opt; memetic refinement by calx's minimisers | draft |
@@ -72,7 +72,7 @@ heuresis depends on calx, morphe, physis and tyche. Inside the infrastructure, i
 
 ## 6. Status
 
-**Draft (2026-11-05).** The first eighteen modules are written and checked, 492 checks in all ([decision 0004](development/decisions/0004-the-first-modules.md)); the rest are planned. Inside The Science Infrastructures, build and check with CMake 3.20 or later (the siblings are taken from the neighbouring directories):
+**Draft (2026-11-05).** The first eighteen modules are written and checked, 547 checks in all ([decision 0004](development/decisions/0004-the-first-modules.md)), and improved by what fourteen case studies of the infrastructure found ([decision 0005](development/decisions/0005-what-the-case-studies-taught.md)); the rest are planned. Inside The Science Infrastructures, build and check with CMake 3.20 or later (the siblings are taken from the neighbouring directories):
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

@@ -1,12 +1,15 @@
 // Checks of heuresis benchmarks: each function's stated minimum at its minimiser and nowhere undercut by random
-// points; rotations orthogonal; the fronts of ZDT and DTLZ reached where the theory says, and their closed-form
-// hypervolumes against Monte Carlo; the pseudo-Boolean functions' optima, NK's separability at k = 0 against
-// enumeration, QUBO's flip deltas against differences, the planted assignment satisfying every clause.
+// points; Schwefel's function bounded below on ℝⁿ by its penalty; rotations orthogonal; the fronts of ZDT and DTLZ
+// reached where the theory says, and their closed-form hypervolumes against Monte Carlo; the disconnected fronts of
+// ZDT3 and DTLZ7 as running records against non-dominated sorting by brute force, their hypervolumes against the
+// case study that derived them and against Monte Carlo; the pseudo-Boolean functions' optima, NK's separability at
+// k = 0 against enumeration, QUBO's flip deltas against differences, the planted assignment satisfying every clause.
 
 #include <heuresis/benchmarks/benchmarks.hpp>
 
 #include <calx/verification/check.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 
@@ -14,6 +17,32 @@ using namespace heuresis::benchmarks;
 using heuresis::search::Draws;
 using heuresis::search::tag;
 using heuresis::variation::Bits;
+
+namespace {
+
+// a dominates b: no worse in every objective, better in one.
+bool dominates(const Objectives& a, const Objectives& b) {
+  bool strict = false;
+  for (std::size_t i = 0; i < a.size(); i++) {
+    if (a[i] > b[i]) return false;
+    strict = strict || a[i] < b[i];
+  }
+  return strict;
+}
+
+// The non-dominated points of a set, by comparing every pair, sorted.
+std::vector<Objectives> non_dominated(const std::vector<Objectives>& p) {
+  std::vector<Objectives> out;
+  for (std::size_t i = 0; i < p.size(); i++) {
+    bool kept = true;
+    for (std::size_t j = 0; j < p.size() && kept; j++) kept = !dominates(p[j], p[i]);
+    if (kept) out.push_back(p[i]);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
+}  // namespace
 
 int main() {
   calx::verification::Suite s;
@@ -60,6 +89,25 @@ int main() {
     s.check("G06: f* = −6961.81387558015", g.objectives[0] + 6961.81387558015, 1e-6);
     s.require("G06: the optimum is feasible to rounding", g.violation() < 1e-9);
     s.require("disc Rosenbrock: (1, 1) on the boundary", disc_rosenbrock(std::vector<double>{1, 1}).feasible() && !disc_rosenbrock(std::vector<double>{1.1, 1}).feasible());
+
+    // Schwefel's function outside its box, with and without the penalty.
+    const double fstar1 = schwefel(std::vector<double>(1, 420.968746359982));
+    double outside = INFINITY;
+    for (double t = 0; t <= 4500; t += 0.002)
+      for (double sign : {-1.0, 1.0}) outside = std::min(outside, schwefel_bounded(std::vector<double>(1, sign * (500 + t))));
+    s.require("schwefel_bounded: no point of |x| ∈ [500, 5000] beats f* (least " + std::to_string(outside) + ")", outside >= fstar1);
+    double least = INFINITY, inside = 0;
+    for (int t = 0; t < 20000; t++) {
+      auto r = draws(tag("check.bench.schwefel"), 0, t);
+      std::vector<double> x(4), y(4);
+      for (auto& v : x) v = r.uniform(-5000, 5000);
+      for (auto& v : y) v = r.uniform(-500, 500);
+      least = std::min(least, schwefel_bounded(x));
+      inside = std::max(inside, std::fabs(schwefel_bounded(y) - schwefel(y)));
+    }
+    s.require("schwefel_bounded: no point of [−5000, 5000]⁴ beats f*", least >= 4 * fstar1);
+    s.require("schwefel_bounded: equal to schwefel inside the box", inside == 0);
+    s.require("schwefel falls below f* outside the box (at 700), schwefel_bounded does not", schwefel(std::vector<double>(1, 700)) < -200 && schwefel_bounded(std::vector<double>(1, 700)) > 3e4);
   }
 
   // Rotations: orthogonal, and moving the minimiser where the transformation says.
@@ -116,6 +164,56 @@ int main() {
     s.check("ZDT6's hypervolume against Monte Carlo", z6 / N - zdt6_hypervolume(), 0.003);
     s.check("DTLZ2's hypervolume against Monte Carlo", s2 / N - dtlz2_hypervolume(3), 0.003);
     s.check("DTLZ1's hypervolume against Monte Carlo", s1 / N - dtlz1_hypervolume(3), 0.003);
+  }
+
+  // The disconnected fronts of ZDT3 and DTLZ7, as running records.
+  {
+    // Non-dominated sorting by brute force keeps exactly the records: of ZDT3's curve on 2001 points (536), and of
+    // DTLZ7's surface at g = 1 on a 61 × 61 grid (31² = 961).
+    std::vector<Objectives> curve, surface;
+    for (std::size_t i = 0; i < 2001; i++) {
+      const double t = static_cast<double>(i) / 2000;
+      curve.push_back({t, zdt3_curve(t)});
+    }
+    for (std::size_t i = 0; i < 61; i++)
+      for (std::size_t j = 0; j < 61; j++) {
+        const double a = static_cast<double>(i) / 60, b = static_cast<double>(j) / 60;
+        surface.push_back({a, b, 6.0 - dtlz7_phi(a) - dtlz7_phi(b)});
+      }
+    auto z = zdt3_front(2001), d = dtlz7_front(61, 3);
+    std::sort(z.begin(), z.end());
+    std::sort(d.begin(), d.end());
+    s.require("ZDT3: the records of the curve are its non-dominated points (536 of 2001)", z == non_dominated(curve) && z.size() == 536);
+    s.require("DTLZ7: the product of φ's records is the surface's non-dominated set (961 of 3721)", d == non_dominated(surface) && d.size() == 961);
+    std::vector<double> x(30, 0.0), y(22, 0.5);
+    x[0] = 0.25;
+    for (auto& v : y) v = 0;
+    y[0] = 0.3;
+    y[1] = 0.8;
+    s.check("ZDT3 at g = 1 lies on its curve", zdt3(x)[1] - zdt3_curve(0.25), 1e-15);
+    s.check("DTLZ7 at g = 1 has f₃ = 6 − φ(f₁) − φ(f₂)", dtlz7(y, 3)[2] - (6 - dtlz7_phi(0.3) - dtlz7_phi(0.8)), 1e-14);
+
+    // The integrals against the case study's 4 × 10⁶ cells (results/reference.json of "Fronts in three objectives").
+    s.check("ZDT3's hypervolume with respect to (1, 1): 1.04442600744", zdt3_hypervolume() - 1.04442600744, 1e-9);
+    s.check("DTLZ7's hypervolume with respect to (1, 1, 7): 2.45766918501", dtlz7_hypervolume(3) - 2.45766918501, 1e-9);
+
+    // Monte Carlo: the share of the reference box dominated by the fronts sampled on 100 001 points.
+    const auto R = running_records(zdt3_curve, 100001, Extreme::least), T = running_records(dtlz7_phi, 100001, Extreme::greatest);
+    const double zmin = zdt3_curve(R.back()), fmin = 6 - 2 * dtlz7_phi(T.back());
+    auto last_at_most = [](const std::vector<double>& v, double a) { return std::upper_bound(v.begin(), v.end(), a) - v.begin() - 1; };
+    const int M = 1000000;
+    double zd = 0, dd = 0;
+    for (int t = 0; t < M; t++) {
+      auto r = draws(tag("check.hv.disconnected"), 0, t);
+      const double a = r.uniform(), b = zmin + (1 - zmin) * r.uniform();
+      const auto k = last_at_most(R, a);
+      zd += k >= 0 && zdt3_curve(R[static_cast<std::size_t>(k)]) <= b;
+      const double u = r.uniform(), v = r.uniform(), w = fmin + (7 - fmin) * r.uniform();
+      const auto i = last_at_most(T, u), j = last_at_most(T, v);
+      dd += i >= 0 && j >= 0 && 6 - dtlz7_phi(T[static_cast<std::size_t>(i)]) - dtlz7_phi(T[static_cast<std::size_t>(j)]) <= w;
+    }
+    s.check("ZDT3's hypervolume against Monte Carlo (10⁶ points, 4 standard errors)", (1 - zmin) * zd / M - zdt3_hypervolume(), 0.0035);
+    s.check("DTLZ7's hypervolume against Monte Carlo (10⁶ points, 4 standard errors)", (7 - fmin) * dd / M - dtlz7_hypervolume(3), 0.009);
   }
 
   // Pseudo-Boolean functions.

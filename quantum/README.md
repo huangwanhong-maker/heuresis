@@ -15,17 +15,18 @@
 | Header | Content |
 |---|---|
 | `inspired.hpp` | `QuantumInspired(n, QuantumInspiredOptions{individuals, table, global_period}, draws)`, generational, observing each Q-bit by the product family's comparison U < sin²φ from the keyed stream; `observation_probabilities` |
-| `grover.hpp` | `Measurement`; the concept `GroverDevice` (`size()`, `measure(threshold, r, stream)`); `grover_success(t, N, r)`; `EmulatedGrover(N, f)` (`marked`, `measure`, `classical_evaluations`, `minimum`); `GroverAdaptiveSearch<D>(device, GroverSearchOptions{lambda, cutoff}, draws)` (`oracle_calls`, `measurements`); `dh_cutoff`, `dh_expected_bound` |
+| `grover.hpp` | `Measurement`; the concept `GroverDevice` (`size()`, `measure(threshold, r, stream)`); `grover_success(t, N, r)`; `EmulatedGrover(N, f)` (`marked`, `measure`, `classical_evaluations`, `minimum`, all const: one emulator serves many searches); `GroverAdaptiveSearch<D>(device, GroverSearchOptions{lambda, cutoff}, draws)` (`oracle_calls`, `measurements`); `dh_cutoff`, `dh_expected_bound` |
 
 ## 3. Checks
 
-`check_heuresis_quantum` (15):
+`check_heuresis_quantum` (16):
 - a product register's measured law equal to the product Bernoulli law to 10⁻¹⁶; the Bell state's law not a product law;
 - QIEA's observations equal, bit for bit, to the product family's reference draws from the same streams, after its angles have moved; QIEA solving OneMax (n = 40);
 - the law against a direct simulation of the amplitudes on 64 points: P(marked) = sin²((2r + 1)θ) for r = 0..12 to 10⁻¹⁵, the amplitudes uniform within each set; the emulator's frequency against the law;
 - Dürr and Høyer's bound on the mean oracle calls at N = 256, 1024, 4096 (about 20, 51 and 120, against bounds of 225, 430 and 821), growing as N^0.65 over that range (½ asymptotically; 1 for a classical search);
 - Grover adaptive search reaching the minima of a QUBO and an NK landscape on 2¹⁰ points found by enumeration;
-- the same search, unchanged, on a second device that simulates the amplitudes, through the seam.
+- the same search, unchanged, on a second device that simulates the amplitudes, through the seam;
+- one const emulator shared by four searches on four threads, each run the run it makes on an emulator of its own.
 
 ## 4. Dependencies
 

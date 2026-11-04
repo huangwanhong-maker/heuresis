@@ -4,7 +4,7 @@
 // with covariance the Fisher information; the compact GA's expected step against enumeration; the Plackett–Luce
 // samplers against the law, Hunter's MM monotone and consistent; UMDA, PBIL, the compact GA, categorical UMDA,
 // the cross-entropy method and Plackett–Luce solving their problems; tied weights; order independence; another
-// sampler through the device seam.
+// sampler through the device seam; the tests of a collapsed law, and searches stopped by them.
 
 #include <heuresis/benchmarks/benchmarks.hpp>
 #include <heuresis/distributions/distributions.hpp>
@@ -13,6 +13,7 @@
 
 #include <calx/verification/check.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 
@@ -205,6 +206,38 @@ int main() {
     DistributionSearch cr(Gaussian{3}, Gaussian::isotropic(Real(3, -1.0), 1.0), 200, CrossEntropy{20, 0.7, 0.8, 5}, Draws(6));
     const auto orr = heuresis::search::run(cr, rosen, Budget{100000, INFINITY, 1e-8});
     s.check("… and Rosenbrock's (n = 3, 100000 evaluations)", orr.best->evaluation.value(), 1e-4);
+  }
+
+  // A law that has collapsed, and searches stopped by it.
+  {
+    // The largest deviation is the eigenvalue's, not the coordinates': C = 10⁻¹² R diag(1, 16) Rᵀ at 45°.
+    GaussianParameters g{Real{0, 0}, calx::linalg::Matrix(2)};
+    g.C(0, 0) = g.C(1, 1) = 8.5e-12;
+    g.C(0, 1) = g.C(1, 0) = 7.5e-12;
+    s.check("a Gaussian's largest standard deviation is √λ_max(C) = 4 × 10⁻⁶", largest_deviation(g) - 4e-6, 1e-15);
+    s.require("… so at 3.5 × 10⁻⁶ it has not collapsed, though each coordinate's deviation (2.9 × 10⁻⁶) is below that", !collapsed(Gaussian{2}, g, 3.5e-6) && collapsed(Gaussian{2}, g, 4.1e-6));
+    const bool cat = collapsed(ProductCategorical{{3, 2}}, {{0.98, 0.01, 0.01}, {0.005, 0.995}}, 0.02) && !collapsed(ProductCategorical{{2}}, {{0.5, 0.5}}, 0.02);
+    const bool pl = collapsed(PlackettLuce{}, {1, 1e-3, 1e-6}, 0.01) && !collapsed(PlackettLuce{}, {0.98, 0.01, 0.01}, 0.01);
+    s.check("Plackett–Luce's mode probability: (0.98)(0.01/0.02) = 0.49", mode_probability({0.98, 0.01, 0.01}) - 0.49, 1e-14);
+    s.require("categorical and Plackett–Luce laws collapse when one value, one ranking, has probability 1 − ε", cat && pl);
+
+    auto sphere = [](const Real& x) { return heuresis::benchmarks::sphere(x); };
+    DistributionSearch stall(Gaussian{5}, Gaussian::isotropic(Real(5, 3.0), 2.0), 50, CrossEntropy{10, 0.7}, Draws(5));
+    stall.stop_when_collapsed(1e-8);
+    const auto o = heuresis::search::run(stall, sphere, Budget{20000, INFINITY, 1e-10});
+    s.require("the stalled cross-entropy method stops once its law has collapsed to 10⁻⁸ (" + std::to_string(static_cast<long>(o.evaluations)) + " evaluations)", o.ending == Ending::stopped && stall.stopped() && largest_deviation(stall.parameters()) <= 1e-8 && o.evaluations < 20000);
+
+    auto onemax = [](const Bits& x) { return heuresis::benchmarks::onemax(x); };
+    DistributionSearch umda(ProductBernoulli{}, ProductBernoulli::uniform(20), 50, Umda{25, false}, Draws(7));
+    umda.stop_when_collapsed(0);
+    const auto ou = heuresis::search::run(umda, onemax, Budget{100000, INFINITY, -INFINITY});
+    const auto& p = umda.parameters();
+    s.require("UMDA without borders stops once its law is a point mass (ε = 0)", ou.ending == Ending::stopped && std::all_of(p.begin(), p.end(), [](double v) { return v == 0 || v == 1; }));
+    DistributionSearch cga(ProductBernoulli{}, ProductBernoulli::uniform(20), 2, Compact{20}, Draws(8));
+    cga.stop_when_collapsed(1.0 / 20);
+    const auto oc = heuresis::search::run(cga, onemax, Budget{100000, INFINITY, -INFINITY});
+    const auto& q = cga.parameters();
+    s.require("the compact GA stops once every frequency has reached a border (ε = 1/n, " + std::to_string(static_cast<long>(oc.evaluations)) + " evaluations)", oc.ending == Ending::stopped && std::all_of(q.begin(), q.end(), [](double v) { return v == 1.0 / 20 || v == 1 - 1.0 / 20; }));
   }
 
   // Plackett–Luce: both samplers follow the law; Hunter's MM is monotone and consistent.

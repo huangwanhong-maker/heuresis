@@ -14,13 +14,32 @@
 //   DTLZ1:      Σ fᵢ = ½,                            HV = 1 − 2⁻ᵐ/m!;
 //   DTLZ2–4:    Σ fᵢ² = 1,                           HV = 1 − π^{m/2}/(2ᵐ Γ(m/2 + 1)),
 // the last two being the unit cube less the region below the front, a simplex and the positive part of a ball.
+//
+// The fronts of ZDT3 and DTLZ7 are disconnected, and are sets of running records (the case study "Fronts in three
+// objectives" of The Science Infrastructures derived them so). On g = 1:
+// - ZDT3 is the curve f = (t, z(t)), z(t) = 1 − √t − t sin 10πt. The point at t is non-dominated among the curve's
+//   points exactly when z(t) < z(s) for every s < t: the front is the set of strict running records of z from below,
+//   five segments.
+// - DTLZ7 is f = (t₁, …, t_{m−1}, 2m − Σ φ(tᵢ)), φ(t) = t(1 + sin 3πt). Its last objective is separable, so
+//   (t₁, …, t_{m−1}) is non-dominated exactly when each tᵢ is a strict running record of φ from above: if a′ ≤ a with
+//   φ(a′) ≥ φ(a), not both equal, then a′ in place of a dominates; conversely, a point that dominates makes one of its
+//   coordinates such a witness. The front is T*^{m−1}, T* two intervals: 2^{m−1} patches.
+// Their hypervolumes, with r = (1, 1) for ZDT3 and r = (1, …, 1, 2m + 1) for DTLZ7, are the measure above the front's
+// lower envelope, integrals of the running extremes Ψ(y) = min_{t ≤ y} z(t) and Φ(y) = max_{t ≤ y} φ(t):
+//   ZDT3:  HV = ∫₀¹ (1 − Ψ(y)) dy                 = 1.044426…;
+//   DTLZ7: HV = 1 + (m − 1) ∫₀¹ Φ(y) dy           = 2.457669… for m = 3,
+// computed by the midpoint rule on the running extreme; 10⁶ cells agree with 4 × 10⁶ to 10⁻¹⁰.
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <numbers>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace heuresis::benchmarks {
@@ -152,5 +171,83 @@ inline double dtlz2_hypervolume(std::size_t m) {
 // Points of the fronts: ZDT1's at f₁ = t, ZDT2's, and DTLZ2's on the positive unit sphere at given angles.
 inline Objectives zdt1_front(double t) { return {t, 1 - std::sqrt(t)}; }
 inline Objectives zdt2_front(double t) { return {t, 1 - t * t}; }
+
+// Running records of a function h on [0, 1]: the fronts of curves whose first objective is t.
+enum class Extreme : std::uint8_t { least, greatest };
+
+// The strict running records of h on the grid tᵢ = i/(N − 1): the tᵢ at which h is below (least) or above (greatest)
+// its every earlier value on the grid.
+template <class H>
+std::vector<double> running_records(H&& h, std::size_t points, Extreme extreme) {
+  if (points < 2) throw std::invalid_argument("heuresis::benchmarks::running_records: at least two points");
+  std::vector<double> out;
+  double record = extreme == Extreme::least ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < points; i++) {
+    const double t = static_cast<double>(i) / static_cast<double>(points - 1), v = h(t);
+    if (extreme == Extreme::least ? v < record : v > record) {
+      out.push_back(t);
+      record = v;
+    }
+  }
+  return out;
+}
+
+// ∫₀¹ of the running extreme of h (min or max over [0, y]) by the midpoint rule on `cells` cells, the extreme taken
+// over the midpoints so far. The running extreme is continuous and monotone, so the error falls with the cells.
+template <class H>
+double running_extreme_integral(H&& h, std::size_t cells, Extreme extreme) {
+  if (cells == 0) throw std::invalid_argument("heuresis::benchmarks::running_extreme_integral: at least one cell");
+  double record = extreme == Extreme::least ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity(), s = 0;
+  for (std::size_t i = 0; i < cells; i++) {
+    const double v = h((static_cast<double>(i) + 0.5) / static_cast<double>(cells));
+    record = extreme == Extreme::least ? std::min(record, v) : std::max(record, v);
+    s += record;
+  }
+  return s / static_cast<double>(cells);
+}
+
+// ZDT3's curve at g = 1, z(t) = 1 − √t − t sin 10πt, and DTLZ7's φ(t) = t(1 + sin 3πt).
+inline double zdt3_curve(double t) { return 1 - std::sqrt(t) - t * std::sin(10 * std::numbers::pi * t); }
+inline double dtlz7_phi(double t) { return t * (1 + std::sin(3 * std::numbers::pi * t)); }
+
+// ZDT3's front sampled on the grid of N points: the non-dominated points of the curve there.
+inline std::vector<Objectives> zdt3_front(std::size_t points) {
+  std::vector<Objectives> out;
+  for (double t : running_records(zdt3_curve, points, Extreme::least)) out.push_back({t, zdt3_curve(t)});
+  return out;
+}
+
+// DTLZ7's front in m objectives sampled on the grid of N points in each of its first m − 1: the product of the
+// records of φ, in lexicographic order of the records' indices (the first coordinate slowest).
+inline std::vector<Objectives> dtlz7_front(std::size_t points, std::size_t m = 3) {
+  if (m < 2) throw std::invalid_argument("heuresis::benchmarks::dtlz7_front: m ≥ 2");
+  const std::vector<double> T = running_records(dtlz7_phi, points, Extreme::greatest);
+  std::vector<Objectives> out;
+  std::vector<std::size_t> at(m - 1, 0);
+  for (;;) {
+    Objectives f(m);
+    double last = 2 * static_cast<double>(m);
+    for (std::size_t i = 0; i + 1 < m; i++) {
+      f[i] = T[at[i]];
+      last -= dtlz7_phi(f[i]);
+    }
+    f[m - 1] = last;
+    out.push_back(std::move(f));
+    std::size_t i = m - 1;  // the odometer: the last coordinate turns fastest
+    while (i > 0) {
+      if (++at[i - 1] < T.size()) break;
+      at[--i] = 0;
+    }
+    if (i == 0) break;
+  }
+  return out;
+}
+
+// The exact hypervolumes of ZDT3's front with respect to (1, 1) and of DTLZ7's with respect to (1, …, 1, 2m + 1).
+inline double zdt3_hypervolume(std::size_t cells = 1000000) { return 1 - running_extreme_integral(zdt3_curve, cells, Extreme::least); }
+inline double dtlz7_hypervolume(std::size_t m = 3, std::size_t cells = 1000000) {
+  if (m < 2) throw std::invalid_argument("heuresis::benchmarks::dtlz7_hypervolume: m ≥ 2");
+  return 1 + static_cast<double>(m - 1) * running_extreme_integral(dtlz7_phi, cells, Extreme::greatest);
+}
 
 }  // namespace heuresis::benchmarks

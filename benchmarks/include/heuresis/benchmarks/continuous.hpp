@@ -16,7 +16,8 @@
 // | rastrigin       | 0                        | 0                                             |
 // | ackley          | 0                        | 0                                             |
 // | griewank        | 0                        | 0                                             |
-// | schwefel        | ≈ 0 (below 10⁻⁸ n)       | 420.968746… in each coordinate                |
+// | schwefel        | ≈ 0 (below 10⁻⁸ n)       | 420.968746… in each coordinate; least only on [−500, 500]ⁿ (below) |
+// | schwefel_bounded| ≈ 0 (below 10⁻⁸ n)       | 420.968746… in each coordinate; least on ℝⁿ   |
 // | styblinski_tang | −39.16616570377142 n     | −2.903534027771178 in each coordinate         |
 // | levy            | 0                        | (1, …, 1)                                     |
 // | branin          | 0.397887357729738        | (−π, 12.275), (π, 2.275), (9.42477796, 2.475) |
@@ -26,6 +27,14 @@
 //
 // Constrained: Rosenbrock on the disc x₁² + x₂² ≤ 2 (f* = 0 at (1, 1), on the boundary), and G06 of Floudas and
 // Pardalos 1990, f* = −6961.81387558015 at (14.095, 0.84296078921547957), both constraints active.
+//
+// Schwefel's function is defined on [−500, 500]ⁿ. Outside the box −x sin √|x| falls without bound, below f*, so a
+// search of ℝⁿ that leaves the box "solves" it there (the case study "Benchmarking continuous search" of The Science
+// Infrastructures found gaps to −3660). schwefel_bounded adds Σ max(0, |xᵢ| − 500)² outside the box: the penalty of
+// that study, and the form of COCO's penalty in its f20, 100 f_pen(x/100) (Hansen et al. 2009, RR-6829), which in the
+// units of this function (COCO divides it by 100n) is n times this one. It is 0 in the box, and outside it no point
+// beats f*: each coordinate's term 418.98… − x sin √|x| is at least 418.98… − |x|, which the penalty t² (t = |x| − 500)
+// exceeds once t ≥ 9.6, and below that sin √|x| < 0 keeps the term above 130.
 
 #pragma once
 
@@ -85,6 +94,16 @@ inline double griewank(std::span<const double> x) {
 inline double schwefel(std::span<const double> x) {
   double s = 418.9828872724338 * static_cast<double>(x.size());
   for (double v : x) s -= v * std::sin(std::sqrt(std::fabs(v)));
+  return s;
+}
+
+// Schwefel's function with the penalty Σ max(0, |xᵢ| − 500)² outside [−500, 500]ⁿ: bounded below by f* on ℝⁿ.
+inline double schwefel_bounded(std::span<const double> x) {
+  double s = schwefel(x);
+  for (double v : x) {
+    const double out = std::max(0.0, std::fabs(v) - 500);
+    s += out * out;
+  }
   return s;
 }
 

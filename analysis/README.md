@@ -7,7 +7,7 @@
 A search is judged by what it spends to reach what it reaches. A run's outcome records each improvement of its best feasible value with the evaluations and cost spent so far ([search](../search/)), and what it spent in all; its **runtime** to a target is the evaluations at its first improvement at or below the target.
 
 - The **expected running time**, ERT = (evaluations of every run until its success, or in all when it failed) / (successes), is the expected cost of restarting independent runs until one succeeds; +∞ without a success.
-- The **empirical distribution of runtimes** over pairs (run, target) is the anytime measure of the COCO platform: at each budget, the fraction of pairs solved. Several targets per run turn a single success rate into a curve.
+- The **empirical distribution of runtimes** over pairs (run, target) is the anytime measure of the COCO platform: at each budget, the fraction of pairs solved. Several targets per run turn a single success rate into a curve. To pool problems of different optima, each run is read **relative to its optimum**, its values replaced by their gaps f − f*, so that targets are precisions Δf, the same for every problem.
 - **Success rates** come with Clopper and Pearson's exact interval, from tyche's beta quantiles.
 - **Anytime curves** give the best value after each budget, and their quantiles over runs.
 - Over a set of problems, the **performance profile** ρ_s(τ) is the fraction of problems on which solver s is within a factor τ of the best; the **data profile** d_s(κ) the fraction solved within κ(n_p + 1) evaluations, n_p the dimension, with Moré and Wild's convergence test.
@@ -17,14 +17,15 @@ A search is judged by what it spends to reach what it reaches. A run's outcome r
 
 | Header | Content |
 |---|---|
-| `runtimes.hpp` | `Run{progress, evaluations, cost}`, `run_of(outcome)`; `runtime`, `best_at`; `expected_running_time` → `Ert{value, evaluations, successes, runs}`; `runtime_distribution`; `clopper_pearson` → `Proportion{estimate, lower, upper}`; `anytime_quantile` |
+| `runtimes.hpp` | `Run{progress, evaluations, cost}`, `run_of(outcome)`, `run_of(outcome, f*)`, `relative_to(run, f*)`; `runtime`, `best_at`; `expected_running_time` → `Ert{value, evaluations, successes, runs}`; `runtime_distribution`; `clopper_pearson` → `Proportion{estimate, lower, upper}`; `anytime_quantile` |
 | `profiles.hpp` | `performance_profile`, `data_profile`, `evaluations_to_reduce` (Moré and Wild's test); `permutation_test` → `Comparison{difference, p_value, permutations}` |
 
 ## 3. Checks
 
-`check_heuresis_analysis` (19), against examples computed by hand:
+`check_heuresis_analysis` (22), against examples computed by hand:
 - runtimes and anytime values read from progress; ERT = (10 + 50 + 30)/2 = 45 on three runs, +∞ without success;
 - the distribution of runtimes over six (run, target) pairs at six budgets;
+- two problems of optima 5 and −3 pooled by their gaps: the distribution of runtimes to precisions 1 and 0.01, which the unshifted values misread, and ERT (8 + 5)/2 = 6.5;
 - Clopper and Pearson's interval: 1 − 0.025^{1/10} for 0 of 10, its mirror for 10 of 10, [0.187086, 0.812914] for 5 of 10;
 - anytime medians and a quantile that reaches a run with no value yet (+∞);
 - performance and data profiles of two solvers on four problems, exactly; Moré and Wild's test;

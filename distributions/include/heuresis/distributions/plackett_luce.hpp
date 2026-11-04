@@ -18,7 +18,8 @@
 //
 // R_js the items ranked s-th or later in ranking j, ω_j its weight, cᵢ = Σ_j ω_j [i is not last in j]; each
 // iteration increases the likelihood, which the checks verify. The weights are normalised to sum 1 (the law is
-// invariant under scaling them).
+// invariant under scaling them). The law has collapsed when its most probable ranking, the items by decreasing
+// weight, has probability at least 1 − ε.
 
 #pragma once
 
@@ -27,6 +28,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <numeric>
 #include <stdexcept>
 #include <vector>
@@ -114,6 +116,21 @@ inline std::vector<double> plackett_luce_fit(std::span<const Permutation> rankin
 }
 
 // The estimation-of-distribution rule: fit the μ best by MM from the current weights, then smooth.
+// The probability of the most probable ranking, Π_k w_(k)/Σ_{j≥k} w_(j) with the weights in decreasing order; the law
+// has collapsed when it is at least 1 − ε.
+inline double mode_probability(const std::vector<double>& w) {
+  std::vector<double> v(w);
+  std::sort(v.begin(), v.end(), std::greater<double>());
+  double rest = 0, p = 1;
+  for (double x : v) rest += x;
+  for (double x : v) {
+    p *= x / rest;
+    rest -= x;
+  }
+  return p;
+}
+inline bool collapsed(const PlackettLuce&, const std::vector<double>& w, double epsilon) { return mode_probability(w) >= 1 - epsilon; }
+
 struct PlackettLuceRule {
   std::size_t mu;
   int iterations = 20;

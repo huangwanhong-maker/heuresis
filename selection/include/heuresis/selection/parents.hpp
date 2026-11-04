@@ -8,7 +8,16 @@
 //
 // - Tournament of size k with replacement: the best of k uniform draws. The individual of rank i (1 = best)
 //   of N wins with probability ((N − i + 1)ᵏ − (N − i)ᵏ)/Nᵏ (Goldberg and Deb 1991, "A comparative analysis of
-//   selection schemes used in genetic algorithms", FOGA 1, 69–93; Bäck 1994).
+//   selection schemes used in genetic algorithms", FOGA 1, 69–93; Bäck 1994). Contestants of equal fitness tie,
+//   and the tie rule decides the drift of a population on a plateau. With Ties::first (the default) the earlier
+//   index wins, so that under equal fitness the order of the population is read as a ranking: the winner of a
+//   tournament of two is j (0-based) with probability q_j = (2(N − j) − 1)/N², and two children share a parent with
+//   probability c = Σ q_j² = (4N² − 1)/(3N³) ≈ 4/(3N) a generation, an effective population of about 3N/4. With
+//   Ties::random a tie goes to a contestant drawn uniformly among those tied, by a fresh draw from the tournament's
+//   stream; under equal fitness the winner is then uniform, c = 1/N, the drift of Wright–Fisher's model. (When the
+//   children choose their parents independently and a neutral label is arranged exchangeably, its expected
+//   heterozygosity falls by the factor 1 − c a generation; the case study "The genetic algorithm as a population" of
+//   The Science Infrastructures measured both rates.)
 // - Truncation: the best μ.
 // - Linear ranking with selective pressure s ∈ [1, 2]: P(rank i) = (2 − s)/N + 2(s − 1)(N − i)/(N(N − 1)) (Baker
 //   1985, "Adaptive selection methods for genetic algorithms", ICGA 1, 101–111).
@@ -19,7 +28,7 @@
 //   ⌈e⌉ copies of its expected number e (Baker 1987, "Reducing bias and inefficiency in the selection algorithm",
 //   ICGA 2, 14–21).
 // - Boltzmann weights exp(−(fᵢ − f_min)/T), the selection of annealing.
-// Ties in an order are broken by index, so every selection is a function of its stream.
+// Ties in an order are broken by index, or by the stream, so every selection is a function of its stream.
 
 #pragma once
 
@@ -29,6 +38,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <numeric>
 #include <span>
@@ -54,17 +64,37 @@ inline std::vector<std::size_t> order(std::size_t n, const Less& less) {
   return o;
 }
 
-// The winner of a tournament of k drawn with replacement; ties to the earlier index.
-inline std::size_t tournament(std::size_t n, std::size_t k, const Less& less, calx::random::Stream& s) {
+// How a tournament breaks a tie between contestants that are equally good: to the earlier index, or to one of them
+// drawn uniformly from the tournament's stream.
+enum class Ties : std::uint8_t { first, random };
+
+// The winner of a tournament of k drawn with replacement; ties to the earlier index, or at random. With Ties::random,
+// each contestant that ties the best so far replaces it with probability 1/m, m the number of contestants tied so far
+// (one uniform draw each), so the winner is uniform among the tied draws.
+inline std::size_t tournament(std::size_t n, std::size_t k, const Less& less, calx::random::Stream& s, Ties ties = Ties::first) {
   if (n == 0 || k == 0) throw std::invalid_argument("heuresis::selection::tournament: an empty population or tournament");
   std::size_t best = s.below(n);
+  if (ties == Ties::first) {
+    for (std::size_t t = 1; t < k; t++) {
+      const std::size_t c = s.below(n);
+      if (less(c, best) || (!less(best, c) && c < best)) best = c;
+    }
+    return best;
+  }
+  double tied = 1;
   for (std::size_t t = 1; t < k; t++) {
     const std::size_t c = s.below(n);
-    if (less(c, best) || (!less(best, c) && c < best)) best = c;
+    if (less(c, best)) {
+      best = c;
+      tied = 1;
+    } else if (!less(best, c)) {
+      tied += 1;
+      if (s.uniform() * tied < 1) best = c;
+    }
   }
   return best;
 }
-inline std::size_t tournament(std::span<const Evaluation> e, std::size_t k, calx::random::Stream& s) { return tournament(e.size(), k, by_evaluation(e), s); }
+inline std::size_t tournament(std::span<const Evaluation> e, std::size_t k, calx::random::Stream& s, Ties ties = Ties::first) { return tournament(e.size(), k, by_evaluation(e), s, ties); }
 
 // The probability that the individual of rank i (1 = best) of n wins a tournament of k with replacement.
 inline double tournament_probability(std::size_t n, std::size_t k, std::size_t i) {
@@ -125,6 +155,16 @@ inline std::size_t roulette(std::span<const double> weights, calx::random::Strea
   const auto c = detail::cumulative(weights);
   const double u = s.uniform() * c.back();
   return static_cast<std::size_t>(std::upper_bound(c.begin(), c.end(), u) - c.begin());
+}
+
+// count independent draws proportional to the weights, the cumulative weights built once: O(n + count log n), where
+// count calls of roulette cost O(count · n). The k-th draw reads the stream's k-th uniform, so the draws are those of
+// count successive calls of roulette on the same stream.
+inline std::vector<std::size_t> roulette_draws(std::span<const double> weights, std::size_t count, calx::random::Stream& s) {
+  const auto c = detail::cumulative(weights);
+  std::vector<std::size_t> out(count);
+  for (auto& i : out) i = static_cast<std::size_t>(std::upper_bound(c.begin(), c.end(), s.uniform() * c.back()) - c.begin());
+  return out;
 }
 
 // count draws by stochastic universal sampling, in pointer order.

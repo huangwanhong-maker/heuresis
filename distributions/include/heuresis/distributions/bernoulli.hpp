@@ -16,6 +16,11 @@
 //   hypothetical population size (Harik, Lobo and Goldberg 1999, "The compact genetic algorithm", IEEE Trans. Evol.
 //   Comput. 3, 287–297). It is the IGO step with λ = 2, the signed selection function W = 1 on [0, ½) and −1 on
 //   (½, 1] (weights ±½) and δt = 2/K (Ollivier et al. 2017): a step of 1/K along the difference of the two samples.
+//
+// The law has collapsed when every frequency lies within ε of 0 or 1. Without borders, ε = 0 says that it has become
+// a point mass, which samples one string for ever. With the borders [1/n, 1 − 1/n], ε = 1/n says that every frequency
+// has reached a border: the law still explores, flipping each bit with probability 1/n, so this is a criterion for
+// restarting (search/restarts.hpp), not for convergence.
 
 #pragma once
 
@@ -65,6 +70,11 @@ struct ProductBernoulli {
 
 inline void clamp_to_borders(std::vector<double>& p, double lo, double hi) {
   for (auto& v : p) v = std::clamp(v, lo, hi);
+}
+
+// The law has collapsed: every frequency is at most ε or at least 1 − ε.
+inline bool collapsed(const ProductBernoulli&, const std::vector<double>& p, double epsilon) {
+  return std::all_of(p.begin(), p.end(), [epsilon](double v) { return v <= epsilon || v >= 1 - epsilon; });
 }
 
 namespace detail {

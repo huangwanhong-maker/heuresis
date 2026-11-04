@@ -16,14 +16,19 @@
 // evolutionary algorithms", IEEE Trans. Evol. Comput. 6, 443–462; Scott and De Jong 2015, "Understanding
 // simulated asynchronous evolutionary algorithms", FOGA).
 //
-// Budgets: evaluations are issued while fewer than the budget have been issued and the completed cost is below
-// the budget's cost; evaluations in flight when the target is reached are abandoned, never told.
+// Budgets: evaluations are issued while fewer than the budget have been issued, the completed cost is below the
+// budget's cost and the simulated time is below the budget's time (no evaluation starts at or after it); evaluations
+// in flight when the target is reached, or that would finish after the budget's time, are abandoned, never told, and
+// the run's time is then the budget's. Each improvement's progress carries the simulated time of its arrival. As in
+// run.hpp, an objective's exception is a failure, and an exception from the algorithm's ask or tell ends the run with
+// Ending::error, keeping what was spent and found.
 
 #pragma once
 
 #include <heuresis/search/draws.hpp>
 #include <heuresis/search/run.hpp>
 
+#include <exception>
 #include <functional>
 #include <queue>
 #include <set>
@@ -61,10 +66,21 @@ Outcome<typename A::Genotype> run_asynchronous(A& algorithm, F&& f, const Budget
   Elite<G> elite;
   double t = 0, issued = 0;
   std::uint64_t order = 0;
-  bool reached = false;
+  bool reached = false, late = false, failed = false;
+  auto fail = [&](const std::exception& e) {
+    failed = true;
+    out.ending = Ending::error;
+    out.error = e.what();
+  };
   for (;;) {
-    while (!idle.empty() && !reached && issued < budget.evaluations && out.cost < budget.cost && !algorithm.stopped()) {
-      std::vector<Candidate<G>> c = algorithm.ask(1);
+    while (!idle.empty() && !reached && issued < budget.evaluations && out.cost < budget.cost && t < budget.time && !algorithm.stopped()) {
+      std::vector<Candidate<G>> c;
+      try {
+        c = algorithm.ask(1);
+      } catch (const std::exception& e) {
+        fail(e);
+        break;
+      }
       if (c.empty()) break;
       const std::size_t w = *idle.begin();
       idle.erase(idle.begin());
@@ -74,7 +90,12 @@ Outcome<typename A::Genotype> run_asynchronous(A& algorithm, F&& f, const Budget
       busy.push({t + d, order++, w, std::move(c[0]), std::move(e)});
       issued += 1;
     }
-    if (reached || busy.empty()) break;
+    if (failed || reached || busy.empty()) break;
+    if (busy.top().finish > budget.time) {  // what is still in flight would finish too late
+      late = true;
+      t = budget.time;
+      break;
+    }
     Job job = busy.top();
     busy.pop();
     t = job.finish;
@@ -83,17 +104,24 @@ Outcome<typename A::Genotype> run_asynchronous(A& algorithm, F&& f, const Budget
     out.cost += job.evaluation.cost;
     const Told told{job.candidate.ticket, job.evaluation};
     Individual<G> x{job.candidate.ticket, std::move(job.candidate.genotype), std::move(job.evaluation), std::move(job.candidate.origin)};
-    elite.offer(x, out.evaluations, out.cost);
+    elite.offer(x, out.evaluations, out.cost, t);
     if (record) record->told.push_back(std::move(x));
-    algorithm.tell(std::span<const Told>(&told, 1));
+    try {
+      algorithm.tell(std::span<const Told>(&told, 1));
+    } catch (const std::exception& e) {
+      fail(e);
+      break;
+    }
     reached = elite.value() <= budget.target;
   }
   out.time = t;
   out.best = elite.best();
   out.progress = elite.progress();
+  if (failed) return out;
   if (reached) out.ending = Ending::target;
+  else if (late) out.ending = Ending::budget;
   else if (algorithm.stopped()) out.ending = Ending::stopped;
-  else if (issued >= budget.evaluations || out.cost >= budget.cost) out.ending = Ending::budget;
+  else if (issued >= budget.evaluations || out.cost >= budget.cost || t >= budget.time) out.ending = Ending::budget;
   else out.ending = Ending::stalled;
   return out;
 }

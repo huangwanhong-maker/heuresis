@@ -8,7 +8,7 @@ When an evaluation costs hours — a simulation, an experiment — the cost of c
 
 An **acquisition** says where an evaluation is worth most: the expected improvement over the best value seen, (y* − μ − ξ)Φ(z) + σφ(z) with z = (y* − μ − ξ)/σ; the probability of improvement Φ(z); or the lower confidence bound μ − κσ. It is maximised over the box by keyed uniform samples, the best few refined by Nelder–Mead.
 
-**Bayesian optimisation** maps the box onto the unit cube and standardises the values, so one prior on the hyperparameters serves every problem; it offers an initial design of 2d + 2 uniform points, then at most `breadth` points an ask, each maximising the acquisition. Points asked but not yet told — the rest of a batch, or evaluations still running on other workers — are filled in by a lie (the surrogate's mean, or the best value seen), which spreads a batch out and lets the search run on asynchronous workers. Failed or infeasible evaluations enter the surrogate with the worst value seen.
+**Bayesian optimisation** maps the box onto the unit cube and standardises the values, so one prior on the hyperparameters serves every problem (its `standardisation()` and `to_unit` carry the surrogate back to the problem's units, to draw it there); it offers an initial design of 2d + 2 uniform points, then at most `breadth` points an ask, each maximising the acquisition. Points asked but not yet told — the rest of a batch, or evaluations still running on other workers — are filled in by a lie (the surrogate's mean, or the best value seen), which spreads a batch out and lets the search run on asynchronous workers. Failed or infeasible evaluations enter the surrogate with the worst value seen.
 
 ## 2. Content
 
@@ -16,16 +16,17 @@ An **acquisition** says where an evaluation is worth most: the expected improvem
 |---|---|
 | `process.hpp` | `Kernel{kind, variance, lengthscales}` (`KernelKind::squared_exponential`, `matern52`); `GaussianProcess(kernel, noise, mean)` (`observe`, `predict` → `Posterior{mean, variance}`, `log_likelihood`); `log_marginal_likelihood`; `fit_hyperparameters` → `Fit{kernel, noise, log_likelihood}`; `HyperparameterBounds` |
 | `acquisition.hpp` | `expected_improvement`, `probability_of_improvement`, `lower_confidence_bound`; `Acquisition{kind, xi, kappa}`; `maximise_over_box` → `Maximum{x, value}` |
-| `bayesian.hpp` | `BayesianOptimisation(box, BayesianOptions{initial, breadth, acquisition, lie, kernel, relevance, samples, starts, fit_evaluations}, draws)`; `Lie::kriging_believer`, `constant_liar`; `surrogate()`, `to_box` |
+| `bayesian.hpp` | `BayesianOptimisation(box, BayesianOptions{initial, breadth, acquisition, lie, kernel, relevance, samples, starts, fit_evaluations}, draws)`; `Lie::kriging_believer`, `constant_liar`; `surrogate()` (in the cube and standardised units), `standardisation()` → `Standardisation{mean, deviation}` (`value`, `posterior`, to the problem's units), `to_box`, `to_unit` |
 
 ## 3. Checks
 
-`check_heuresis_models` (18):
+`check_heuresis_models` (21):
 - for both kernels, the posterior mean, the posterior variance and the log marginal likelihood against a direct computation by calx's Cholesky factorisation, to 10⁻¹²; the Matérn kernel at a hand-computed distance;
 - expected improvement and the probability of improvement against 10⁶ draws of the posterior; their limits without uncertainty;
 - type-II maximum likelihood raising the likelihood and recovering the length scale of a draw from the prior within 25% (8% here);
 - Bayesian optimisation reaching Branin's minimum within 10⁻⁴ and Hartmann-3's within 10⁻³ in 60 evaluations (to 2 × 10⁻⁸ and 5 × 10⁻⁸ in fact); the same seed giving the same run;
-- a batch of four by the kriging believer spread apart; `breadth` capping an ask; a run on four simulated asynchronous workers reaching Branin within 10⁻³.
+- a batch of four by the kriging believer spread apart; `breadth` capping an ask; a run on four simulated asynchronous workers reaching Branin within 10⁻³;
+- the standardisation equal to the sample mean and deviation of the 60 values told on Branin; `to_unit` inverting `to_box`; the surrogate's mean, unscaled, reproducing every value at its point within 10⁻³ of the deviation (2.5 × 10⁻⁵ in fact).
 
 ## 4. Dependencies
 

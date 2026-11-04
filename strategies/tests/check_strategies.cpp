@@ -434,6 +434,38 @@ int main() {
     const double ratio = std::log(es.sigma() / 1.0) / std::log(std::sqrt(x2) / std::sqrt(10.0));
     s.check("the (1+1)-ES: log σ falls with log ‖x‖ (their ratio, minus 1)", ratio - 1, 0.15);
     s.require("the (1+1)-ES: the success rate settles below the target 1/5", static_cast<double>(es.successes()) / static_cast<double>(es.steps()) < 0.2);
+
+    // Its default min_sigma, 10⁻¹² σ₀, stops it on the sphere once σ has collapsed, long before a budget of 10⁶.
+    OnePlusOneEs st(Real(n, 1.0), 0.5, {}, Draws(3));
+    const auto os = run(st, [](const Real& x) { return bm::sphere(x); }, Budget{1e6, INFINITY, -INFINITY});
+    s.require("the (1+1)-ES stops by default once σ < 10⁻¹² σ₀ (" + std::to_string(static_cast<long>(os.evaluations)) + " evaluations)", os.ending == Ending::stopped && st.min_sigma() == 0.5e-12 && st.sigma() < 0.5e-12 && os.evaluations < 1e5);
+    OnePlusOneOptions never;
+    never.min_sigma = 0;
+    OnePlusOneEs nv(Real(n, 1.0), 0.5, never, Draws(3));
+    const auto on = run(nv, [](const Real& x) { return bm::sphere(x); }, Budget{20000, INFINITY, -INFINITY});
+    s.require("… and min_sigma = 0 never stops it", on.ending == Ending::budget && on.evaluations == 20000);
+
+    // Restarted from uniform points on Rastrigin's 10-D function by search::Restarts, each run stopping by its own
+    // min_sigma: in the budget of 10⁵ evaluations the restarts reach better minima than one run, for every seed.
+    const Box box = Box::cube(n, -5.12, 5.12);
+    auto make = [box](std::size_t, Draws d) {
+      calx::random::Stream st = d(heuresis::search::tag("check.restarts.start"), 0, 0);
+      return OnePlusOneEs(heuresis::variation::uniform_point(box, st), 2.0, {}, d);
+    };
+    bool better = true;
+    std::size_t fewest = SIZE_MAX;
+    double worst_ratio = 0;
+    for (std::uint64_t seed = 0; seed < 5; seed++) {
+      calx::random::Stream st = Draws(seed)(heuresis::search::tag("check.restarts.start"), 0, 0);
+      OnePlusOneEs once(heuresis::variation::uniform_point(box, st), 2.0, {}, Draws(seed));
+      const auto o1 = run(once, [](const Real& x) { return bm::rastrigin(x); }, Budget{1e5, INFINITY, -INFINITY});
+      heuresis::search::Restarts<OnePlusOneEs> again(make, {}, Draws(seed));
+      const auto o2 = run(again, [](const Real& x) { return bm::rastrigin(x); }, Budget{1e5, INFINITY, -INFINITY});
+      better = better && o1.ending == Ending::stopped && o2.best->evaluation.value() < o1.best->evaluation.value();
+      fewest = std::min(fewest, again.runs());
+      worst_ratio = std::max(worst_ratio, o2.best->evaluation.value() / o1.best->evaluation.value());
+    }
+    s.require("restarted (1+1)-ES on 10-D Rastrigin: better than one run for all 5 seeds (at least " + std::to_string(fewest) + " runs; best ratio at most " + std::to_string(worst_ratio) + ")", better && fewest > 10);
   }
 
   // ---- Differential evolution -----------------------------------------------------------------------------------

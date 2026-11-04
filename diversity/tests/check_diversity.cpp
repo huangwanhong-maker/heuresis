@@ -136,6 +136,48 @@ int main() {
     s.check("CVT-MAP-Elites (20 000 evaluations) fills its Voronoi cells", 1 - me.archive().coverage(), 0.05);
   }
 
+  // One operator suffices: vary alone is vary at p_v = 1 with the identity for a mutation, run for run.
+  {
+    Kernels<Real> alone = arm_kernels(8), identity = arm_kernels(8);
+    alone.mutate = nullptr;
+    identity.mutate = [](const Real& x, calx::random::Stream&) { return x; };
+    MapElites<Real, Grid>::Options a, b;
+    a.initial = b.initial = 200;
+    b.variation_probability = 1;  // a's p_v is not read: without a mutation every child is a variation
+    MapElites<Real, Grid> ma(alone, grid, a, Draws(4)), mb(identity, grid, b, Draws(4));
+    heuresis::search::Record<Real> ra, rb;
+    heuresis::search::run(ma, arm, heuresis::search::Budget{5000}, heuresis::search::Serial{}, heuresis::search::unlimited, &ra);
+    heuresis::search::run(mb, arm, heuresis::search::Budget{5000}, heuresis::search::Serial{}, heuresis::search::unlimited, &rb);
+    auto same = [](const heuresis::search::Record<Real>& x, const heuresis::search::Record<Real>& y) {
+      if (x.told.size() != y.told.size()) return false;
+      for (std::size_t i = 0; i < x.told.size(); i++)
+        if (x.told[i].ticket != y.told[i].ticket || x.told[i].genotype != y.told[i].genotype || x.told[i].origin.parents != y.told[i].origin.parents) return false;
+      return true;
+    };
+    std::size_t two = 0;
+    for (const auto& x : ra.told) two += x.origin.parents.size() == 2;
+    s.require("MAP-Elites with vary alone: the run of vary at p_v = 1 and an identity mutation, bit for bit", same(ra, rb) && ra.told.size() == 5000);
+    s.require("… every bred candidate a variation of two elites", two == 4800);
+
+    NoveltySearch<Real>::Options na, nb;
+    na.population = nb.population = 50;
+    nb.variation_probability = 1;
+    NoveltySearch<Real> sa(alone, na, Draws(5)), sb(identity, nb, Draws(5));
+    heuresis::search::Record<Real> qa, qb;
+    heuresis::search::run(sa, arm, heuresis::search::Budget{2000}, heuresis::search::Serial{}, heuresis::search::unlimited, &qa);
+    heuresis::search::run(sb, arm, heuresis::search::Budget{2000}, heuresis::search::Serial{}, heuresis::search::unlimited, &qb);
+    bool refused = false;
+    try {
+      Kernels<Real> none = arm_kernels(8);
+      none.mutate = nullptr;
+      none.vary = nullptr;
+      MapElites<Real, Grid> m(none, grid, a);
+    } catch (const std::invalid_argument&) {
+      refused = true;
+    }
+    s.require("novelty search with vary alone: the same, bit for bit; kernels with neither operator refused", same(qa, qb) && qa.told.size() == 2000 && refused);
+  }
+
   // Novelty search visits more of the disc than random search with the same budget.
   {
     NoveltySearch<Real>::Options o;

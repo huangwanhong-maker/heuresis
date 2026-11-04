@@ -6,12 +6,13 @@
 // value by value (family.hpp). UMDA's rule fits the frequencies of the μ best and keeps every probability above the
 // border 1/((kᵢ − 1) n), the multi-valued borders of Ben Jedidia, Doerr and Krejca (2023, "Estimation-of-
 // distribution algorithms for multi-valued decision variables", GECCO, 230–238), which reduce to [1/n, 1 − 1/n]
-// for kᵢ = 2.
+// for kᵢ = 2. The law has collapsed when every variable takes one value with probability at least 1 − ε.
 
 #pragma once
 
 #include <heuresis/distributions/family.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
@@ -85,6 +86,11 @@ inline void clamp_categorical(std::vector<double>& q, double lo) {
       if (q[j] < lo) { fixed[j] = 1; changed = true; }
     }
   }
+}
+
+// The law has collapsed: every variable takes one value with probability at least 1 − ε.
+inline bool collapsed(const ProductCategorical&, const ProductCategorical::Parameters& p, double epsilon) {
+  return std::all_of(p.begin(), p.end(), [epsilon](const std::vector<double>& q) { return !q.empty() && *std::max_element(q.begin(), q.end()) >= 1 - epsilon; });
 }
 
 struct CategoricalUmda {

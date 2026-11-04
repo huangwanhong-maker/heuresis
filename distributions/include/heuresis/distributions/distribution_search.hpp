@@ -4,8 +4,12 @@
 // UMDA on categorical vectors, the cross-entropy method and the pure rank-μ evolution strategy on ℝⁿ, Plackett–Luce
 // on permutations, and any IGO algorithm. The k-th point of generation g is drawn from the stream keyed by (g, k), by
 // the sampler given (the reference law by default); the rule reads the generation in ticket order, ranked best
-// first by Deb's order with ties to the earlier ticket. A stopping predicate on θ may end the search (a Bernoulli law
-// whose frequencies have all reached the borders, a Gaussian whose spread is below a tolerance).
+// first by Deb's order with ties to the earlier ticket. A stopping predicate on θ may end the search, reported by
+// stopped() once a generation is complete: any predicate (stop_when), or the family's own test of a law that has
+// collapsed, collapsed(family, θ, tolerance) (stop_when_collapsed): a Gaussian whose largest standard deviation is at
+// most the tolerance, Bernoulli frequencies all within it of 0 or 1, categorical variables each with a value of
+// probability at least 1 − tolerance, a Plackett–Luce law whose mode has that probability. None is set by default:
+// a search runs until its budget unless it is told when to stop.
 
 #pragma once
 
@@ -13,6 +17,7 @@
 #include <heuresis/search/draws.hpp>
 #include <heuresis/search/protocol.hpp>
 
+#include <concepts>
 #include <functional>
 #include <utility>
 #include <vector>
@@ -63,6 +68,12 @@ class DistributionSearch {
 
   bool stopped() const { return stop_ && !batch_.active() && stop_(theta_); }
   void stop_when(std::function<bool(const Parameters&)> stop) { stop_ = std::move(stop); }
+  // Stops once the law has collapsed by its family's test at the given tolerance.
+  void stop_when_collapsed(double tolerance)
+    requires requires(const F& f, const Parameters& t, double e) { { collapsed(f, t, e) } -> std::convertible_to<bool>; }
+  {
+    stop_ = [family = family_, tolerance](const Parameters& t) { return collapsed(family, t, tolerance); };
+  }
 
   const Parameters& parameters() const { return theta_; }
   const F& family() const { return family_; }

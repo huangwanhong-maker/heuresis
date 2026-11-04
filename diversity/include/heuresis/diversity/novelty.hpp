@@ -14,10 +14,11 @@
 // behaviour space it covers never shrinks.
 //
 // Generational under the ask–tell protocol: μ offspring are bred by tournaments on novelty (a mutation, or with
-// probability p_v a two-parent variation first); when the generation is told, novelty is computed for parents and
-// offspring together, the archive is extended in ticket order, and the μ most novel survive. Behaviours are the
-// evaluations' descriptors; a failure or a missing descriptor has novelty 0 and never enters the archive. The
-// objective is ignored by the selection; the driver's elite still records the best point seen.
+// probability p_v a two-parent variation first; either operator suffices alone, as in map_elites.hpp); when the
+// generation is told, novelty is computed for parents and offspring together, the archive is extended in ticket
+// order, and the μ most novel survive. Behaviours are the evaluations' descriptors; a failure or a missing descriptor
+// has novelty 0 and never enters the archive. The objective is ignored by the selection; the driver's elite still
+// records the best point seen.
 
 #pragma once
 
@@ -68,6 +69,7 @@ class NoveltySearch {
 
   NoveltySearch(Kernels<G> kernels, Options options, heuresis::search::Draws draws = heuresis::search::Draws{}) : kernels_(std::move(kernels)), options_(options), draws_(draws), threshold_(options.threshold) {
     if (options_.population < 2) throw std::invalid_argument("heuresis::diversity::NoveltySearch: a population of at least two");
+    kernels_.validate("NoveltySearch");
   }
 
   std::vector<Candidate> ask(std::size_t limit) {
@@ -110,11 +112,11 @@ class NoveltySearch {
       calx::random::Stream s = draws_(breed_tag, generation_, i);
       const heuresis::selection::Less more_novel = [this](std::size_t a, std::size_t b) { return novelty_[a] > novelty_[b]; };
       const auto& a = population_[heuresis::selection::tournament(population_.size(), options_.tournament, more_novel, s)];
-      if (kernels_.vary && s.uniform() < options_.variation_probability) {
+      if (kernels_.varies(options_.variation_probability, s)) {
         const auto& b = population_[heuresis::selection::tournament(population_.size(), options_.tournament, more_novel, s)];
-        c.push_back({heuresis::search::make_ticket(draws_.island(), serial_++), kernels_.mutate(kernels_.vary(a.genotype, b.genotype, s), s), {breed_tag, {a.ticket, b.ticket}}});
+        c.push_back({heuresis::search::make_ticket(draws_.island(), serial_++), kernels_.child(a.genotype, b.genotype, s), {breed_tag, {a.ticket, b.ticket}}});
       } else {
-        c.push_back({heuresis::search::make_ticket(draws_.island(), serial_++), kernels_.mutate(a.genotype, s), {breed_tag, {a.ticket}}});
+        c.push_back({heuresis::search::make_ticket(draws_.island(), serial_++), kernels_.child(a.genotype, s), {breed_tag, {a.ticket}}});
       }
     }
     batch_.open(std::move(c));

@@ -17,7 +17,9 @@
 // hitting time of the (1+1)-ES with 1/5 success rule", GECCO, for the smooth form).
 //
 // It is generational with one candidate per generation: the first is the initial point, then one offspring at a
-// time.
+// time. It stops once σ has fallen below min_sigma, by default 10⁻¹² σ₀: twelve decades below its start a step
+// changes the point by little more than rounding, and an algorithm that never stops spends the rest of any budget
+// where it settled. min_sigma = 0 never stops.
 
 #pragma once
 
@@ -36,7 +38,7 @@ struct OnePlusOneOptions {
   double damping = 0;  // 0: 1 + n/2
   std::optional<heuresis::variation::Box> bounds;
   heuresis::variation::Repair repair = heuresis::variation::Repair::reflect;
-  double min_sigma = 0;  // stopped once σ falls below it
+  std::optional<double> min_sigma;  // stopped once σ falls below it; by default 10⁻¹² σ₀ (0: never)
 };
 
 class OnePlusOneEs {
@@ -48,6 +50,7 @@ class OnePlusOneEs {
       : options_(std::move(options)), draws_(draws), sigma_(sigma) {
     if (x0.empty() || !(sigma > 0)) throw std::invalid_argument("heuresis::strategies::OnePlusOneEs: an empty point or a step size that is not positive");
     if (options_.damping <= 0) options_.damping = 1 + static_cast<double>(x0.size()) / 2;
+    if (!options_.min_sigma) options_.min_sigma = 1e-12 * sigma;
     start_ = std::move(x0);
   }
 
@@ -82,8 +85,9 @@ class OnePlusOneEs {
       }
   }
 
-  bool stopped() const { return !batch_.active() && sigma_ < options_.min_sigma; }
+  bool stopped() const { return !batch_.active() && sigma_ < *options_.min_sigma; }
   double sigma() const { return sigma_; }
+  double min_sigma() const { return *options_.min_sigma; }
   const std::optional<heuresis::search::Individual<Genotype>>& parent() const { return parent_; }
   std::uint64_t successes() const { return successes_; }
   std::uint64_t steps() const { return step_; }

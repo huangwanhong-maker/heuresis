@@ -17,7 +17,9 @@
 //
 // It is generational: a generation is m ants, ant k's choices drawn from the stream keyed by (generation, k); the
 // trails change once per generation, after every ant is told, so the colony does not depend on the order in
-// which the evaluations return.
+// which the evaluations return. Since the trails are fixed within a generation, the weights τ_ij^α η_ij^β are
+// computed once per generation (n² powers) rather than at every step of every ant (about m n²/2), with the same
+// rounding, so the colony is unchanged bit for bit.
 
 #pragma once
 
@@ -62,6 +64,7 @@ class AntColony {
     if (options_.rho == 0) options_.rho = options_.variant == AcoVariant::ant_system ? 0.5 : 0.02;
     weight_.resize(n * n);
     for (std::size_t k = 0; k < n * n; k++) weight_[k] = std::pow(eta_[k], options_.beta);
+    choice_.resize(n * n);
   }
 
   std::vector<heuresis::search::Candidate<Permutation>> ask(std::size_t limit) {
@@ -84,6 +87,7 @@ class AntColony {
   void open() {
     std::vector<heuresis::search::Candidate<Permutation>> c(options_.ants);
     std::vector<double> w(n_);
+    for (std::size_t k = 0; k < n_ * n_; k++) choice_[k] = std::pow(tau_[k], options_.alpha) * weight_[k];
     for (std::size_t k = 0; k < options_.ants; k++) {
       calx::random::Stream s = draws_(purpose, generation_, k);
       Permutation p;
@@ -94,7 +98,7 @@ class AntColony {
       used[at] = 1;
       while (p.size() < n_) {
         double total = 0;
-        for (std::size_t j = 0; j < n_; j++) total += (w[j] = used[j] ? 0 : std::pow(tau_[at * n_ + j], options_.alpha) * weight_[at * n_ + j]);
+        for (std::size_t j = 0; j < n_; j++) total += (w[j] = used[j] ? 0 : choice_[at * n_ + j]);
         std::size_t next = n_;
         if (total > 0 && std::isfinite(total)) {
           const double u = s.uniform() * total;
@@ -155,7 +159,7 @@ class AntColony {
   }
 
   std::size_t n_;
-  std::vector<double> eta_, weight_;
+  std::vector<double> eta_, weight_, choice_;  // η, η^β, and τ^α η^β for the generation being built
   AcoOptions options_;
   heuresis::search::Draws draws_;
   std::vector<double> tau_;

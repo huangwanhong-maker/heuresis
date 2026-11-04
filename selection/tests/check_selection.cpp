@@ -1,6 +1,8 @@
-// Checks of heuresis selection: tournament frequencies against Goldberg and Deb's closed form; ranking
-// probabilities; Baker's universal sampling within one of every expected count, exactly; survivors;
-// lexicase's specialists; invariance of order-based selection under monotone transformations, exactly.
+// Checks of heuresis selection: tournament frequencies against Goldberg and Deb's closed form, under either tie
+// rule; the drift of a tournament under equal fitness by its tie rule, against (4M² − 1)/(3M³) and 1/M; ranking
+// probabilities; Baker's universal sampling within one of every expected count, exactly; roulette's many draws
+// equal to its single ones; survivors; lexicase's specialists; invariance of order-based selection under monotone
+// transformations, exactly.
 
 #include <heuresis/search/draws.hpp>
 #include <heuresis/selection/selection.hpp>
@@ -40,6 +42,34 @@ int main() {
     }
     s.check("tournament: the closed form sums to 1", total - 1, 1e-14);
     s.check("tournament of 3: frequencies by rank", dev, 0.003);
+
+    // With ties at random, the same law by rank (contestants tie only with themselves here).
+    std::vector<double> rwins(n, 0);
+    for (int t = 0; t < trials; t++) {
+      auto r = draws(tag("check.tournament.random"), 0, t);
+      rwins[tournament(pop, k, r, Ties::random)] += 1;
+    }
+    double rdev = 0;
+    for (std::size_t i = 0; i < n; i++) rdev = std::max(rdev, std::fabs(rwins[ord[i]] / trials - tournament_probability(n, k, i + 1)));
+    s.check("tournament of 3 with ties at random: the same frequencies by rank", rdev, 0.003);
+  }
+
+  // Drift under equal fitness: two children share a parent with probability c = Σ q_j², (4M² − 1)/(3M³) when ties go
+  // to the earlier index and 1/M when they are broken at random (M = 20, 400 000 pairs of tournaments of two).
+  {
+    const std::size_t M = 20;
+    const int pairs = 400000;
+    const Less equal = [](std::size_t, std::size_t) { return false; };
+    double first = 0, random = 0;
+    for (int t = 0; t < pairs; t++) {
+      auto a = draws(tag("check.drift.a"), 0, t), b = draws(tag("check.drift.b"), 0, t);
+      auto c = a, d = b;
+      first += tournament(M, 2, equal, a) == tournament(M, 2, equal, b);
+      random += tournament(M, 2, equal, c, Ties::random) == tournament(M, 2, equal, d, Ties::random);
+    }
+    const double m = static_cast<double>(M);
+    s.check("ties to the earlier index: coalescence (4M² − 1)/(3M³) = 0.066625 a generation (4 standard errors)", first / pairs - (4 * m * m - 1) / (3 * m * m * m), 0.0016);
+    s.check("ties at random: coalescence 1/M = 0.05, Wright–Fisher's (4 standard errors)", random / pairs - 1 / m, 0.0014);
   }
 
   // Order-based selection is invariant under strictly increasing transformations, with the same stream.
@@ -92,6 +122,20 @@ int main() {
     double rw = 0;
     for (int t = 0; t < 200000; t++) { auto r = draws(tag("check.roulette"), 0, t); rw += roulette(w, r) == 4; }
     s.check("roulette: frequency proportional to weight", rw / 200000 - w[4] / total, 0.004);
+
+    // Many draws at once: the draws of successive single calls on the same stream, with their frequencies.
+    auto r = draws(tag("check.roulette.draws"), 0, 0), q = r;
+    const auto many = roulette_draws(w, 200000, r);
+    bool same = true;
+    std::vector<double> counts(w.size(), 0);
+    for (auto i : many) {
+      same = same && i == roulette(w, q);
+      counts[i] += 1;
+    }
+    double mdev = 0;
+    for (std::size_t i = 0; i < w.size(); i++) mdev = std::max(mdev, std::fabs(counts[i] / 200000 - w[i] / total));
+    s.require("roulette_draws: the draws of 200 000 successive calls of roulette on the same stream", same && many.size() == 200000);
+    s.check("roulette_draws: frequencies proportional to the weights", mdev, 0.004);
   }
 
   // Survivors.

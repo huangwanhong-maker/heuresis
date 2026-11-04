@@ -18,27 +18,35 @@ The cross-entropy method's covariance, smoothed geometrically, shrinks faster th
 
 Plackett–Luce draws a ranking item by item with probabilities proportional to positive weights; equivalently, it orders the items by log wᵢ plus a standard Gumbel variable. Its weights are fitted by Hunter's minorise–maximise iteration, which raises the likelihood at every step.
 
+**A law that has collapsed** samples (nearly) one point for ever, and a search on it spends the rest of its budget there. Each family says when its law has collapsed at a tolerance, `collapsed(family, θ, tolerance)`, and `stop_when_collapsed` makes a search stop then:
+- a Gaussian, when its largest standard deviation √λ_max(C) is at most the tolerance, in every direction, a criterion invariant under rotations;
+- Bernoulli frequencies, when every one is within ε of 0 or 1. Without borders, ε = 0 says that the law is a point mass. With the borders [1/n, 1 − 1/n], ε = 1/n says that every frequency is at a border: the law still explores, so this is a criterion for restarts;
+- categorical variables, when each has a value of probability at least 1 − ε; a Plackett–Luce law, when its mode has that probability.
+
+No search stops by default.
+
 ## 2. Content
 
 | Header | Content |
 |---|---|
 | `family.hpp` | concepts `Family`, `ExponentialFamily` (statistic, expectation, from_expectation), `Riemannian` (coordinates, score, Fisher information) and `Sampler`; `Reference`; `quantile_weights`, `truncation_weights`, `logarithmic_weights` (CMA-ES's), `tied_weights`; `expectation_step`, `igo_step` |
-| `bernoulli.hpp` | `ProductBernoulli`; rules `Umda` (with the borders [1/n, 1 − 1/n]), `Pbil`, `Compact` |
-| `categorical.hpp` | `ProductCategorical{sizes}`; `CategoricalUmda` with the multi-valued borders 1/((k − 1)n); `clamp_categorical` |
-| `gaussian.hpp` | `Gaussian{n}` with `GaussianParameters{m, C}` (score and Fisher information in (m, C)); rules `RankMu`, `CrossEntropy` (smoothing, dynamic smoothing of the covariance, a variance floor) |
-| `plackett_luce.hpp` | `PlackettLuce` (sequential and Gumbel samplers); `plackett_luce_fit` (Hunter's MM, weighted rankings, a floor); `PlackettLuceRule` |
-| `distribution_search.hpp` | `DistributionSearch<F, Rule, S>`, the generational ask–tell search of any family, rule and sampler, with a stopping predicate on θ; `IgoRule`, `ExpectationStep`, `FisherStep` |
+| `bernoulli.hpp` | `ProductBernoulli`; rules `Umda` (with the borders [1/n, 1 − 1/n]), `Pbil`, `Compact`; `collapsed` |
+| `categorical.hpp` | `ProductCategorical{sizes}`; `CategoricalUmda` with the multi-valued borders 1/((k − 1)n); `clamp_categorical`; `collapsed` |
+| `gaussian.hpp` | `Gaussian{n}` with `GaussianParameters{m, C}` (score and Fisher information in (m, C)); rules `RankMu`, `CrossEntropy` (smoothing, dynamic smoothing of the covariance, a variance floor); `largest_deviation`, `collapsed` |
+| `plackett_luce.hpp` | `PlackettLuce` (sequential and Gumbel samplers); `plackett_luce_fit` (Hunter's MM, weighted rankings, a floor); `PlackettLuceRule`; `mode_probability`, `collapsed` |
+| `distribution_search.hpp` | `DistributionSearch<F, Rule, S>`, the generational ask–tell search of any family, rule and sampler, with a stopping predicate on θ (`stop_when`) or the family's test of a collapsed law (`stop_when_collapsed`); `IgoRule`, `ExpectationStep`, `FisherStep` |
 
 ## 3. Checks
 
-`check_heuresis_distributions` (36):
+`check_heuresis_distributions` (43):
 - the generic IGO step equal to PBIL's update on bits and to the rank-μ update on Gaussians, to rounding; the expectation step at δt = 1 equal to UMDA's and the cross-entropy refit; the two Gaussian parametrisations differing by δt² d̄d̄ᵀ exactly;
 - the Gaussian score centred with covariance the Fisher information (Monte Carlo), its log-density, the Bernoulli law summing to 1;
 - the compact GA's mean step on OneMax against its expectation by enumeration of pairs;
 - UMDA, PBIL and the compact GA solving OneMax (n = 40), categorical UMDA a four-valued OneMax;
 - the cross-entropy method stalling with constant smoothing (f > 0.1 on the sphere) and reaching 10⁻⁶ on the sphere (n = 5) and 10⁻⁴ on Rosenbrock's function (n = 3) with dynamic smoothing;
 - both Plackett–Luce samplers against the law on S₃; Hunter's MM monotone and recovering six weights from 20 000 rankings within 0.01; the Plackett–Luce EDA finding a hidden permutation of 8, also with the Gumbel sampler through the device seam;
-- tied weights; independence of the order of telling.
+- tied weights; independence of the order of telling;
+- a collapsed law: a Gaussian's largest deviation √λ_max(C) = 4 × 10⁻⁶ for a rotated C whose coordinates' deviations are 2.9 × 10⁻⁶; Plackett–Luce's mode probability; categorical and Plackett–Luce tests on hand examples; the stalled cross-entropy method stopped once collapsed to 10⁻⁸ (4,700 evaluations), UMDA without borders once a point mass, the compact GA once every frequency is at a border (982 evaluations).
 
 ## 4. Dependencies
 
@@ -67,4 +75,3 @@ heuresis `search`, `variation`; calx `linalg` (Cholesky, solves, determinants) a
 
 1. Families with dependencies (Bayesian networks, Mallows models, Gaussian mixtures), and natural evolution strategies as an `IgoRule` on a Cholesky parametrisation.
 2. Batch sampling on a device: a sampler that draws a whole generation at once, so that a backend can fill it in bulk.
-3. A stopping rule shared by the families (all frequencies at their borders; a covariance below a tolerance).

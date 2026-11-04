@@ -10,7 +10,7 @@ The search for quality and diversity does not ask for the best solution. It asks
 
 An archive is a function from cells to elites. Offering an individual changes the archive only where the individual is better (by Deb's rule, so constraints and failures are handled as everywhere in heuresis) than the elite of its cell. So an archive's coverage (the share of cells filled) and its QD-score (Σ over filled feasible cells of offset − f) never decrease.
 
-MAP-Elites breeds every candidate from elites drawn uniformly from the archive: a mutation of one, or a two-parent variation (iso+line on real vectors) followed by a mutation. With Voronoi cells it is CVT-MAP-Elites. Vassiliades et al. take the sites as the centroids of k-means on samples of the behaviour space, so that the cells have nearly equal volume in any dimension. k-means belongs to tyche and is not yet written, so the caller supplies the sites. Any sites give a valid tessellation.
+MAP-Elites breeds every candidate from elites drawn uniformly from the archive: a mutation of one, or a two-parent variation (iso+line on real vectors) followed by a mutation. Either operator suffices alone; with a variation and no mutation every child is a variation, as with an identity mutation at p_v = 1, run for run. With Voronoi cells it is CVT-MAP-Elites. Vassiliades et al. take the sites as the centroids of k-means on samples of the behaviour space, so that the cells have nearly equal volume in any dimension. k-means belongs to tyche and is not yet written, so the caller supplies the sites. Any sites give a valid tessellation.
 
 Novelty search rewards being unlike what has been seen. A behaviour's sparseness is its mean distance to its k nearest neighbours among the population and an archive of past behaviours. Selection is by sparseness alone, and a behaviour joins the archive when its sparseness exceeds a threshold that adapts to the rate of additions. On deceptive problems, where the objective's gradient leads away from the goal, it is not misled.
 
@@ -27,14 +27,14 @@ All three algorithms follow the ask–tell protocol:
 | Header | Content |
 |---|---|
 | `archive.hpp` | `Grid(lower, upper, resolution)`: `cell`, `centre`; `Voronoi(sites)`: `cell`; `Archive<G, Tessellation>`: `offer`, `coverage`, `qd_score(offset)`, `filled`, `elite` |
-| `map_elites.hpp` | `Kernels<G>{initialise, mutate, vary}`; `MapElites<G, Tessellation>(kernels, tessellation, Options{initial, variation_probability, breadth}, draws)`: `ask`, `tell`, `inject`, `emigrants`, `archive` |
+| `map_elites.hpp` | `Kernels<G>{initialise, mutate, vary}`, at least one of `mutate` and `vary`; `MapElites<G, Tessellation>(kernels, tessellation, Options{initial, variation_probability, breadth}, draws)`: `ask`, `tell`, `inject`, `emigrants`, `archive` |
 | `novelty.hpp` | `sparseness(b, others, k)`; `NoveltySearch<G>(kernels, Options{population, neighbours, threshold, crowded, quiet, tournament, variation_probability}, draws)`: `population`, `novelty`, `archive`, `threshold` |
 | `niching.hpp` | `sharing_function`, `shared_fitness(fitness, distance, σ, α)`; `clearing(values, distance, σ, κ)` |
 | `diversity.hpp` | all of the above |
 
 ## 3. Checks
 
-`check_heuresis_diversity` (17 checks, under a second):
+`check_heuresis_diversity` (20 checks, under a second):
 - a grid maps each cell's centre to the cell and points outside its box to its boundary cells; a Voronoi tessellation maps each site to its own cell;
 - an archive fills a cell, refuses a worse individual and a failure, and takes a better one; over 2000 random offers its coverage and QD-score never decrease;
 - MAP-Elites on the planar arm of eight links (30 000 evaluations, a 20 × 20 grid):
@@ -43,6 +43,7 @@ All three algorithms follow the ask–tell protocol:
   - its elites at the edge of the disc are nearly straight (angle variance 10⁻³);
 - CVT-MAP-Elites fills all 200 Voronoi cells of sites inside the disc (20 000 evaluations);
 - novelty search (10 000 evaluations) visits 95% of the reachable cells, against 62% for random search with the same budget, and its archive only grows;
+- MAP-Elites and novelty search with a variation alone give, bit for bit, the runs of the variation at p_v = 1 with an identity mutation, every bred candidate of two parents; kernels with neither operator are refused;
 - sharing equalises the shared fitness when peaks of fitness 1 and ½ hold 20 and 10 individuals; clearing keeps exactly the κ = 2 best of each niche.
 
 ## 4. Dependencies

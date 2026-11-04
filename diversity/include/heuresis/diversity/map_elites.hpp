@@ -3,9 +3,11 @@
 //
 // After a number of random samples, every candidate is bred from elites drawn uniformly from the filled cells of the
 // archive: a mutation of one, or, with probability p_v, a two-parent variation of two followed by the mutation (the
-// iso+line operator of Vassiliades and Mouret 2018 on real vectors, variation/real.hpp). Each evaluation is offered
-// to the archive, which keeps it if it fills or improves its cell. Coverage and QD-score never decrease
-// (archive.hpp). With a grid it is MAP-Elites; with Voronoi cells, CVT-MAP-Elites.
+// iso+line operator of Vassiliades and Mouret 2018 on real vectors, variation/real.hpp). Either operator suffices
+// alone: without `vary` every child is a mutation; without `mutate` every child is a variation of two elites,
+// whatever p_v, drawn from the stream as with p_v = 1 and the identity for a mutation, so that the two forms give
+// the same run. Each evaluation is offered to the archive, which keeps it if it fills or improves its cell. Coverage
+// and QD-score never decrease (archive.hpp). With a grid it is MAP-Elites; with Voronoi cells, CVT-MAP-Elites.
 //
 // Asynchronous under the ask–tell protocol: candidates are bred from the archive as it stands, the k-th from the
 // stream keyed by k, and each tell offers one individual; the run is reproducible from the order of arrival. It
@@ -22,16 +24,30 @@
 #include <algorithm>
 #include <functional>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace heuresis::diversity {
 
+// The kernels of a search for diversity: the initial samples, and at least one of a mutation and a two-parent
+// variation (with both, a variation is followed by a mutation).
 template <class G>
 struct Kernels {
   std::function<G(calx::random::Stream&)> initialise;
-  std::function<G(const G&, calx::random::Stream&)> mutate;
+  std::function<G(const G&, calx::random::Stream&)> mutate;          // optional if vary is given
   std::function<G(const G&, const G&, calx::random::Stream&)> vary;  // optional: two parents, one child
+
+  // Whether a child is a variation of two parents: always without a mutation; with probability p_v (one uniform
+  // from the stream) when both are given; never without a variation. The uniform is drawn whenever vary is given.
+  bool varies(double variation_probability, calx::random::Stream& s) const { return vary && (s.uniform() < variation_probability || !mutate); }
+  // The child of one parent, or of two after a variation.
+  G child(const G& a, calx::random::Stream& s) const { return mutate(a, s); }
+  G child(const G& a, const G& b, calx::random::Stream& s) const { return mutate ? mutate(vary(a, b, s), s) : vary(a, b, s); }
+  void validate(const char* who) const {
+    if (!mutate && !vary) throw std::invalid_argument(std::string("heuresis::diversity::") + who + ": a mutation or a variation");
+  }
 };
 
 template <class G, class Tessellation>
@@ -49,6 +65,7 @@ class MapElites {
 
   MapElites(Kernels<G> kernels, Tessellation tessellation, Options options, heuresis::search::Draws draws = heuresis::search::Draws{})
       : kernels_(std::move(kernels)), archive_(std::move(tessellation)), options_(options), draws_(draws) {
+    kernels_.validate("MapElites");
     if (options_.breadth == 0) options_.breadth = 1;
   }
 
@@ -65,11 +82,11 @@ class MapElites {
         calx::random::Stream s = draws_(breed_tag, 0, serial_);
         const auto& filled = archive_.filled();
         const auto& a = *archive_.elite(filled[s.below(filled.size())]);
-        if (kernels_.vary && s.uniform() < options_.variation_probability) {
+        if (kernels_.varies(options_.variation_probability, s)) {
           const auto& b = *archive_.elite(filled[s.below(filled.size())]);
-          out.push_back({heuresis::search::make_ticket(draws_.island(), serial_), kernels_.mutate(kernels_.vary(a.genotype, b.genotype, s), s), {breed_tag, {a.ticket, b.ticket}}});
+          out.push_back({heuresis::search::make_ticket(draws_.island(), serial_), kernels_.child(a.genotype, b.genotype, s), {breed_tag, {a.ticket, b.ticket}}});
         } else {
-          out.push_back({heuresis::search::make_ticket(draws_.island(), serial_), kernels_.mutate(a.genotype, s), {breed_tag, {a.ticket}}});
+          out.push_back({heuresis::search::make_ticket(draws_.island(), serial_), kernels_.child(a.genotype, s), {breed_tag, {a.ticket}}});
         }
       }
       serial_++;

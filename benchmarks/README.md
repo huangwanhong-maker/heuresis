@@ -1,6 +1,6 @@
 # benchmarks: Problems with Known Optima
 
-*Status: draft (2026-11-05): pseudo-Boolean, continuous, constrained, multi-objective, permutation and repertoire problems ([decision 0004](../development/decisions/0004-the-first-modules.md)).*
+*Status: draft (2026-11-05): pseudo-Boolean, continuous, constrained, multi-objective, permutation and repertoire problems ([decision 0004](../development/decisions/0004-the-first-modules.md), [decision 0005](../development/decisions/0005-what-the-case-studies-taught.md)).*
 
 ## 1. Concepts
 
@@ -17,23 +17,29 @@ An algorithm can only be checked on a problem whose answer is known: its optimum
 
 These are the targets the hypervolume algorithms converge to.
 
+**Disconnected fronts.** The fronts of ZDT3 and DTLZ7 are sets of running records. ZDT3 at g = 1 is the curve (t, z(t)), and a point is non-dominated exactly when z(t) is below every earlier value: its front is the record set of z from below, five segments. DTLZ7's last objective is 2m − Σ φ(tᵢ), separable, so a point is non-dominated exactly when each tᵢ is a record of φ from above: its front is the product of a record set (two intervals) with itself, 2^{m−1} patches. Their hypervolumes are integrals of the running extremes: 1.044426 for ZDT3 with respect to (1, 1), and 1 + (m − 1)∫Φ = 2.457669 for DTLZ7 with respect to (1, 1, 7).
+
+**Domains.** Schwefel's function is defined on [−500, 500]ⁿ; outside it it falls below f* without bound, so a search of ℝⁿ "solves" it by leaving the box. `schwefel_bounded` adds Σ max(0, |xᵢ| − 500)² outside, the form of COCO's penalty, and is least at its minimiser on all of ℝⁿ.
+
 ## 2. Content
 
 | Header | Content |
 |---|---|
 | `pseudo_boolean.hpp` | `onemax`, `leading_ones`, `jump`, `trap`; `NK` (Kauffman); `Qubo` (with `flip_delta`); `PlantedSat` |
-| `continuous.hpp` | `sphere`, `ellipsoid`, `rosenbrock`, `rastrigin`, `ackley`, `griewank`, `schwefel`, `styblinski_tang`, `levy`, `branin`, `six_hump_camel`, `hartmann3`, `hartmann6`, with their minima in the header's table; constrained `disc_rosenbrock`, `g06`; `Rotation` (Haar, by QR of a Gaussian matrix), `transformed` (shift and rotation) |
-| `multiobjective.hpp` | `zdt1`, `zdt2`, `zdt3`, `zdt4`, `zdt6`; `dtlz1`, `dtlz2`, `dtlz3`, `dtlz4`, `dtlz7`; `zdt6_least_f1`; the exact hypervolumes `zdt1_hypervolume`, `zdt2_hypervolume`, `zdt6_hypervolume`, `dtlz1_hypervolume`, `dtlz2_hypervolume`; front points |
+| `continuous.hpp` | `sphere`, `ellipsoid`, `rosenbrock`, `rastrigin`, `ackley`, `griewank`, `schwefel` (on its box), `schwefel_bounded` (on ℝⁿ), `styblinski_tang`, `levy`, `branin`, `six_hump_camel`, `hartmann3`, `hartmann6`, with their minima in the header's table; constrained `disc_rosenbrock`, `g06`; `Rotation` (Haar, by QR of a Gaussian matrix), `transformed` (shift and rotation) |
+| `multiobjective.hpp` | `zdt1`, `zdt2`, `zdt3`, `zdt4`, `zdt6`; `dtlz1`, `dtlz2`, `dtlz3`, `dtlz4`, `dtlz7`; `zdt6_least_f1`; the exact hypervolumes `zdt1_hypervolume`, `zdt2_hypervolume`, `zdt3_hypervolume`, `zdt6_hypervolume`, `dtlz1_hypervolume`, `dtlz2_hypervolume`, `dtlz7_hypervolume`; front points, and the sampled fronts `zdt3_front`, `dtlz7_front`; `running_records`, `running_extreme_integral` (`Extreme::least`, `greatest`), `zdt3_curve`, `dtlz7_phi` |
 | `combinatorial.hpp` | `Tour` (Euclidean, random instances); `planar_arm` (a repertoire problem: descriptor the tip, objective the variance of the angles) |
 | `benchmarks.hpp` | all of the above |
 
 ## 3. Checks
 
-`check_heuresis_benchmarks` (59):
+`check_heuresis_benchmarks` (71):
 - Every continuous function's f(x*) = f*, with no point among 20 000 random ones below f*. Schwefel's constant, G06's optimum and its feasibility, and the disc constraint.
+- `schwefel_bounded`: no point beats f* on a scan of |x| ∈ [500, 5000] by 0.002 (least 210.27) nor among 20 000 points of [−5000, 5000]⁴; equal to `schwefel` in the box; `schwefel` itself below f* at 700, the bounded form not.
 - A rotation orthogonal to 10⁻¹⁴. A shifted, rotated ellipsoid least at its shift. E[R₀₀²] = 1/n under the Haar measure.
 - ZDT1, ZDT2, DTLZ1, DTLZ2 and DTLZ4 on their fronts at the optimal distance variables.
 - The closed-form hypervolumes against Monte Carlo (4 × 10⁵ points each), and ZDT6's least f₁.
+- ZDT3's and DTLZ7's fronts as records: brute-force non-dominated sorting of 2001 points of ZDT3's curve keeps exactly its 536 records, and of a 61 × 61 grid of DTLZ7's surface exactly the 961 points of the product of records; both problems at g = 1 on those curves; the hypervolumes 1.04442600744 and 2.45766918501 of the case study that derived them (to 10⁻⁹; 3 × 10⁻¹¹ and 5 × 10⁻¹¹ in fact), and against Monte Carlo (10⁶ points each).
 - The pseudo-Boolean optima and valleys. NK at k = 0 separable, its bitwise optimum the global one by enumeration. NK's neighbourhoods. QUBO's flip deltas against differences. The planted assignment satisfying every clause.
 - Tours of a square, and the straight arm.
 

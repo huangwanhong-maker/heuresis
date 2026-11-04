@@ -2,7 +2,8 @@
 // computation (calx), for both kernels; the Matérn kernel at a hand-computed distance; expected improvement and the
 // probability of improvement against Monte Carlo of the posterior; type-II maximum likelihood raising the likelihood
 // and recovering a length scale from a draw of the prior; Bayesian optimisation reaching Branin's and Hartmann's
-// minima within small budgets; batches by lies spreading out, and running on simulated workers; reproducibility.
+// minima within small budgets; batches by lies spreading out, and running on simulated workers; reproducibility; the
+// surrogate unscaled to the problem's units, reproducing the values told at their points.
 
 #include <heuresis/benchmarks/benchmarks.hpp>
 #include <heuresis/models/models.hpp>
@@ -123,6 +124,26 @@ int main() {
     BayesianOptimisation again(branin_box, BayesianOptions{}, Draws(1));
     const auto o2 = heuresis::search::run(again, [](const Real& x) { return heuresis::benchmarks::branin(x); }, Budget{60, INFINITY, -INFINITY});
     s.require("the same seed gives the same run", o2.best->ticket == o.best->ticket && o2.best->evaluation.value() == o.best->evaluation.value());
+
+    // The surrogate in the problem's units: the standardisation is the sample mean and deviation of the values told,
+    // and the unscaled posterior mean reproduces each value at its point.
+    BayesianOptimisation drawn(branin_box, BayesianOptions{}, Draws(1));
+    heuresis::search::Record<Real> rec;
+    heuresis::search::run(drawn, [](const Real& x) { return heuresis::benchmarks::branin(x); }, Budget{60, INFINITY, -INFINITY}, heuresis::search::Serial{}, heuresis::search::unlimited, &rec);
+    double m = 0, v = 0;
+    for (const auto& x : rec.told) m += x.evaluation.value() / 60;
+    for (const auto& x : rec.told) v += (x.evaluation.value() - m) * (x.evaluation.value() - m) / 59;
+    const Standardisation st = drawn.standardisation();
+    s.check("the standardisation is the sample mean and standard deviation of the values told", std::max(std::fabs(st.mean - m) / std::fabs(m), std::fabs(st.deviation - std::sqrt(v)) / std::sqrt(v)), 1e-12);
+    const GaussianProcess gp = drawn.surrogate();
+    double worst = 0, roundtrip = 0;
+    for (const auto& x : rec.told) {
+      const auto u = drawn.to_unit(x.genotype);
+      roundtrip = std::max(roundtrip, heuresis::variation::euclidean(drawn.to_box(u), x.genotype));
+      worst = std::max(worst, std::fabs(st.posterior(gp.predict(u)).mean - x.evaluation.value()));
+    }
+    s.check("to_unit inverts to_box", roundtrip, 1e-12);
+    s.check("unscaled, the surrogate's mean reproduces the 60 values told at their points (relative to the deviation " + std::to_string(st.deviation) + ")", worst / st.deviation, 1e-3);
   }
 
   // Batches by lies: distinct points per ask, and a run on simulated workers.

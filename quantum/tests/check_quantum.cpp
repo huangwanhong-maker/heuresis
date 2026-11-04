@@ -3,7 +3,8 @@
 // stream, and QIEA solving OneMax; Grover's law against a simulation of the amplitudes (success probability, and
 // uniformity within the marked set); the emulator's frequencies against the law; Dürr and Høyer's bound on the
 // expected oracle calls and their √N scaling; Grover adaptive search finding the minima of a QUBO and an NK landscape
-// against enumeration; the same search on another device through the seam.
+// against enumeration; the same search on another device through the seam; one emulator, read only, shared by
+// searches on threads.
 
 #include <heuresis/benchmarks/benchmarks.hpp>
 #include <heuresis/quantum/quantum.hpp>
@@ -172,6 +173,34 @@ int main() {
       const auto o = heuresis::search::run(gas, f, Budget{INFINITY, INFINITY, least});
       s.require(std::string(which == 0 ? "QUBO" : "NK") + " (n = 10): Grover adaptive search reaches the minimum found by enumeration (" + std::to_string(gas.oracle_calls()) + " oracle calls, " + std::to_string(gas.measurements()) + " measurements; N = 1024)", o.ending == Ending::target && o.best->evaluation.value() == least);
     }
+  }
+
+  // One emulator shared by four searches on a pool of threads: measure only reads it, and every run is the run it
+  // makes on an emulator of its own.
+  {
+    static_assert(GroverDevice<const EmulatedGrover>);
+    const std::uint64_t N = 256;
+    std::vector<double> values(N);
+    calx::random::Stream v = draws(tag("check.shared.values"), 0, 0);
+    for (auto& x : values) x = v.uniform();
+    auto f = [&](std::uint64_t i) { return values[i]; };
+    const EmulatedGrover shared(N, f);
+    std::vector<std::uint64_t> calls(4), alone(4);
+    calx::scheduler::ThreadPool pool(4);
+    calx::scheduler::parallel_for(pool, 4, 1, [&](std::size_t b, std::size_t e, std::size_t) {
+      for (std::size_t k = b; k < e; k++) {
+        GroverAdaptiveSearch gas(shared, GroverSearchOptions{6.0 / 5.0, dh_cutoff(N)}, Draws(20 + k));
+        heuresis::search::run(gas, f, Budget{});
+        calls[k] = gas.oracle_calls();
+      }
+    });
+    for (std::size_t k = 0; k < 4; k++) {
+      EmulatedGrover own(N, f);
+      GroverAdaptiveSearch gas(own, GroverSearchOptions{6.0 / 5.0, dh_cutoff(N)}, Draws(20 + k));
+      heuresis::search::run(gas, f, Budget{});
+      alone[k] = gas.oracle_calls();
+    }
+    s.require("one const emulator serves four searches on four threads, each as on an emulator of its own", calls == alone);
   }
 
   // The same search on another device: one that computes the amplitudes.

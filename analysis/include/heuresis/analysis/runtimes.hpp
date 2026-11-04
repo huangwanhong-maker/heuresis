@@ -17,6 +17,10 @@
 //   the beta quantile from tyche (Clopper and Pearson 1934, "The use of confidence or fiducial limits illustrated in the
 //   case of the binomial", Biometrika 26, 404–413);
 // - anytime curves: the best value after b evaluations, and its quantiles over runs (tyche's quantiles, type 7).
+//
+// Targets are values of the objective. To pool runs on problems of different optima into one distribution, as COCO
+// does over a suite of functions, each run is read relative to its problem's optimum f*: relative_to replaces every
+// value by its gap f − f* (COCO's precision Δf), so that targets become precisions, the same for every problem.
 
 #pragma once
 
@@ -43,6 +47,17 @@ struct Run {
 template <class G>
 Run run_of(const heuresis::search::Outcome<G>& o) {
   return {o.progress, o.evaluations, o.cost};
+}
+
+// The run with every value replaced by its gap to the problem's optimum, f − f*.
+inline Run relative_to(const Run& r, double optimum) {
+  Run out = r;
+  for (auto& p : out.progress) p.value -= optimum;
+  return out;
+}
+template <class G>
+Run run_of(const heuresis::search::Outcome<G>& o, double optimum) {
+  return relative_to(run_of(o), optimum);
 }
 
 // The evaluations at the first improvement reaching the target.

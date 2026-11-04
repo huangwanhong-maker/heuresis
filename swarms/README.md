@@ -12,7 +12,7 @@ The checks hold both statements exactly.
 
 SPSO 2011's invariance has a price. About a fixed attractor, a particle's second moments follow a linear map whose spectral radius at the standard parameters is below 1 in two dimensions and above it from three on. In ten dimensions the particles fly at the scale of the box, and the swarm progresses only through its personal bests. The inertia and constriction rules, at Clerc and Kennedy's χ = 0.7298, converge in ten dimensions.
 
-An ant colony is a search distribution on permutations, built element by element from trails it learns and a heuristic the problem supplies (the domain's knowledge enters here). MAX–MIN keeps every trail within bounds set from the best tour so far, so that every edge keeps a probability of being chosen.
+An ant colony is a search distribution on permutations, built element by element from trails it learns and a heuristic the problem supplies (the domain's knowledge enters here). MAX–MIN keeps every trail within bounds set from the best tour so far, so that every edge keeps a probability of being chosen. The trails are fixed within a generation, so the weights τ_ij^α η_ij^β of the choices are computed once a generation (n² powers, where each ant's construction would take about n²/2). On a 100-city tour with 100 ants this makes a generation 2.7 to 3.0 times faster (MAX–MIN and the Ant System, α = 1 and 1.5), with the same trails and the same best tour, bit for bit.
 
 ## 2. Content
 

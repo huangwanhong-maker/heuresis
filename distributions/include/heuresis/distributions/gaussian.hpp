@@ -20,11 +20,17 @@
 //
 // Sampling: x = m + L z, C = L Lᵀ by calx's Cholesky factorisation, z standard normal from the stream; O(n³) per
 // point, adequate for moderate dimensions; CMA-ES (strategies/) keeps its own eigendecomposition.
+//
+// The law has collapsed when its largest standard deviation, √λ_max(C) (calx's symmetric eigenproblem), is at most a
+// tolerance: every direction's spread is then below it, whatever the coordinates (a criterion invariant under
+// rotations, unlike one on the coordinates' deviations √C_ii). A variance floor keeps λ_max at or above the floor.
 
 #pragma once
 
 #include <heuresis/distributions/family.hpp>
 #include <heuresis/variation/real.hpp>
+
+#include <calx/linalg/eigen.hpp>
 
 #include <cmath>
 #include <numbers>
@@ -153,6 +159,14 @@ struct Gaussian {
 
   std::size_t n = 0;  // the dimension
 };
+
+// √λ_max(C), the largest standard deviation of the law in any direction.
+inline double largest_deviation(const GaussianParameters& p) {
+  const auto e = calx::linalg::symmetric_eigen(p.C);
+  return e.values.empty() ? 0 : std::sqrt(std::max(0.0, e.values.back()));
+}
+// The law has collapsed: its largest standard deviation is at most the tolerance.
+inline bool collapsed(const Gaussian&, const GaussianParameters& p, double tolerance) { return largest_deviation(p) <= tolerance; }
 
 // The rank-μ update of CMA-ES with equal learning rates: the IGO step in (m, C), in closed form.
 struct RankMu {

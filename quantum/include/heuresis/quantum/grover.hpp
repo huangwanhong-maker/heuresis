@@ -14,7 +14,8 @@
 // would spend). It emulates the law of a quantum computer, not a quantum computer: it says what a device would return
 // and what it would cost in oracle calls, and is the reference against which a device or a simulator of registers and
 // gates is tested (decision 0003 §2.8). Registers, gates and measurement as such belong to physis's `quantum` when it
-// holds them; any type with `size()` and `measure(threshold, r, stream)` is a `GroverDevice`.
+// holds them; any type with `size()` and `measure(threshold, r, stream)` is a `GroverDevice`. The emulator's measure
+// reads its table and changes nothing (it is const), so one emulator can serve many searches, on many threads.
 //
 // Grover adaptive search (Dürr and Høyer 1996, "A quantum algorithm for finding the minimum", arXiv:quant-ph/9607014;
 // Baritompa, Bulger and Wood 2005, "Grover's quantum algorithm applied to global optimization", SIAM J. Optim. 15,
@@ -75,7 +76,7 @@ class EmulatedGrover {
   std::uint64_t marked(double threshold) const {
     return static_cast<std::uint64_t>(std::lower_bound(order_.begin(), order_.end(), threshold, [&](std::uint64_t i, double y) { return values_[i] < y; }) - order_.begin());
   }
-  Measurement measure(double threshold, std::uint64_t r, calx::random::Stream& s) {
+  Measurement measure(double threshold, std::uint64_t r, calx::random::Stream& s) const {
     const std::uint64_t N = size(), t = marked(threshold);
     const bool hit = t > 0 && s.uniform() < grover_success(t, N, r);
     const std::uint64_t index = hit ? order_[s.below(t)] : (t < N ? order_[t + s.below(N - t)] : order_[s.below(N)]);
