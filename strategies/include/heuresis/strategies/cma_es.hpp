@@ -160,8 +160,11 @@ struct CmaState {
     const std::size_t n = size();
     B = calx::linalg::Matrix::identity(n);
     D.assign(n, 1.0);
-    if (separable) {
+    if (separable) {  // B = I: C^{−1/2} is diagonal, held in D alone, so a decomposition costs O(n)
       for (std::size_t i = 0; i < n; i++) D[i] = std::sqrt(std::max(C(i, i), std::numeric_limits<double>::min()));
+      inverse_root = calx::linalg::Matrix();
+      decomposed = generation;
+      return;
     } else {
       for (std::size_t i = 0; i < n; i++)
         for (std::size_t j = 0; j < i; j++) C(i, j) = C(j, i) = 0.5 * (C(i, j) + C(j, i));
@@ -179,18 +182,26 @@ struct CmaState {
     decomposed = generation;
   }
 
-  // y ↦ C^{−1/2} y by the last decomposition.
+  // y ↦ C^{−1/2} y by the last decomposition; O(n) when separable, with the dense form's arithmetic, (1/Dᵢ) yᵢ.
   Real whiten(std::span<const double> y) const {
     const std::size_t n = size();
     Real z(n, 0.0);
+    if (separable) {
+      for (std::size_t i = 0; i < n; i++) z[i] = (1.0 / D[i]) * y[i];
+      return z;
+    }
     for (std::size_t i = 0; i < n; i++)
       for (std::size_t j = 0; j < n; j++) z[i] += inverse_root(i, j) * y[j];
     return z;
   }
 
-  // z ↦ B D z, a step of the distribution from a standard normal vector.
+  // z ↦ B D z, a step of the distribution from a standard normal vector; O(n) when separable.
   void colour(std::span<const double> z, std::span<double> y) const {
     const std::size_t n = size();
+    if (separable) {
+      for (std::size_t i = 0; i < n; i++) y[i] = D[i] * z[i];
+      return;
+    }
     for (std::size_t i = 0; i < n; i++) {
       double v = 0;
       for (std::size_t k = 0; k < n; k++) v += B(i, k) * D[k] * z[k];

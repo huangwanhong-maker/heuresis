@@ -41,7 +41,7 @@ All the algorithms are generational: a generation is asked whole, and updated on
   - under x ↦ e^{0.3f} − 7, and when a generation is told in reverse: the run is unchanged bit for bit.
 - **Convergence to 10⁻¹⁰ in 10-D, over 5 seeds** (most evaluations: sphere 1,710; ellipsoid 4,400; rotated ellipsoid 4,630; Rosenbrock from 0 5,730). On the first three, going from 10⁻⁶ to 10⁻¹⁰ costs 0.6–1.6 times going from 10⁻² to 10⁻⁶, so convergence is linear.
   - Active CMA needs fewer evaluations than passive on the ellipsoid (means 4,316 and 6,084).
-  - The separable variant solves the 30-D ellipsoid (6,776 evaluations) and keeps C diagonal.
+  - The separable variant solves the 30-D ellipsoid (6,776 evaluations) and keeps C diagonal. Its decomposition, whitening and colouring are O(n) and equal the dense forms bit for bit; in 621 dimensions 20,000 evaluations take 0.63 s, against 242 s when it built C^{−1/2} densely (found by the district-economy case studies, 2026-11-05).
 - **Bounds, termination, injection:**
   - The box transformation evaluates only points of the box and converges to a corner optimum to 10⁻⁹. Reflection lets σ grow above 10σ₀ there.
   - The transformation inverts on the box and maps ℝ into it.

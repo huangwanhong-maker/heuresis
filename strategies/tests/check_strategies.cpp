@@ -337,6 +337,25 @@ int main() {
       for (std::size_t j = 0; j < 30; j++)
         if (i != j) off = std::max(off, std::fabs(sc.state().C(i, j)));
     s.check("the separable variant keeps C diagonal", off, 0);
+    // Its decomposition, whitening and colouring are O(n) and equal, bit for bit, the dense forms with B = I.
+    {
+      CmaState st = CmaState::initial(Real(40, 0.0), 1.0, true);
+      auto r = Draws(8)(heuresis::search::tag("check.strategies.separable"), 0, 0);
+      for (std::size_t i = 0; i < 40; i++) st.C(i, i) = std::exp(r.uniform(-6, 6));
+      st.decompose();
+      Real z(40), y(40), w(40);
+      for (std::size_t i = 0; i < 40; i++) z[i] = r.normal(), w[i] = r.normal();
+      st.colour(z, y);
+      const Real white = st.whiten(w);
+      bool same = st.inverse_root.n == 0;
+      for (std::size_t i = 0; i < 40; i++) {
+        double dense_y = 0, dense_z = 0;  // the dense loops' sums, with their exact zeros
+        for (std::size_t k = 0; k < 40; k++) dense_y += (i == k ? 1.0 : 0.0) * st.D[k] * z[k];
+        for (std::size_t j = 0; j < 40; j++) dense_z += (i == j ? 1.0 * 1.0 / st.D[i] : 0.0) * w[j];
+        same = same && y[i] == dense_y && white[i] == dense_z && st.D[i] == std::sqrt(st.C(i, i));
+      }
+      s.require("separable: no dense C^{−1/2} is built, and colour and whiten equal the dense forms bit for bit", same);
+    }
   }
 
   // ---- Bounds, termination, injection -------------------------------------------------------------------------

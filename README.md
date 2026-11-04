@@ -72,7 +72,7 @@ heuresis depends on calx, morphe, physis and tyche. Inside the infrastructure, i
 
 ## 6. Status
 
-**Draft (2026-11-05).** The first eighteen modules are written and checked, 547 checks in all ([decision 0004](development/decisions/0004-the-first-modules.md)), and improved by what fourteen case studies of the infrastructure found ([decision 0005](development/decisions/0005-what-the-case-studies-taught.md)); the rest are planned. Inside The Science Infrastructures, build and check with CMake 3.20 or later (the siblings are taken from the neighbouring directories):
+**Draft (2026-11-05).** The first eighteen modules are written and checked, 548 checks in all ([decision 0004](development/decisions/0004-the-first-modules.md)), and improved by what fourteen case studies of the infrastructure found ([decision 0005](development/decisions/0005-what-the-case-studies-taught.md)); the rest are planned. Inside The Science Infrastructures, build and check with CMake 3.20 or later (the siblings are taken from the neighbouring directories):
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
