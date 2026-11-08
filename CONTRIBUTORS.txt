@@ -120,11 +120,14 @@ This file:   the record of who made this repository and of the terms on
 5. MATERIAL OF OTHERS
 ---------------------
 
-5.1 No file carries code or values transcribed from others' software.
-    Methods are written from their published descriptions, which each
-    file cites. The checks use synthetic images whose answers are
-    known exactly (tubes, tori and trees of known radii) and the
-    published examples the other checks name.
+5.1 No file carries code transcribed from others' software. Methods
+    are written from their published descriptions, which each file
+    cites. One file carries values computed by others' software:
+    strategies/tests/fixtures/cma_fixture.hpp, states of CMA-ES
+    computed by pycma 4.5.0 (BSD 3-clause licence) and written by the
+    script beside it, make_cma_fixtures.py. The other checks use
+    problems whose answers are known exactly (benchmarks with known
+    optima and fronts, closed forms, brute force).
 
 5.2 The reference values in the checks are facts taken from the
     published references that each check names.
