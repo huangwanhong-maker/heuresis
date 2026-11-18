@@ -221,9 +221,12 @@ class Evolution {
 
   bool stopped() const { return s_.stopped || (st_.generations > 0 && s_.generation >= st_.generations) || (st_.evaluations > 0 && s_.evaluations >= st_.evaluations); }
 
-  // Proposals from outside, made by `source`: asked with the next generation, credited to the source.
-  void propose(const std::vector<G>& genotypes, const std::string& source) {
-    for (const auto& g : genotypes) proposals_.push_back({g, source});
+  // Proposals from outside, made by `source`: asked with the next generation, credited to the source. A proposal made from members
+  // (a person's or a model's variation of them) names their tickets in `parents`, one list for each genotype, or none: its lineage
+  // then records them, it inherits their age, and a parent whose proposed child survives is credited as useful.
+  void propose(const std::vector<G>& genotypes, const std::string& source, const std::vector<std::vector<Ticket>>& parents = {}) {
+    if (!parents.empty() && parents.size() != genotypes.size()) throw std::invalid_argument("heuresis::evolution: the parents of each proposal, or of none");
+    for (std::size_t i = 0; i < genotypes.size(); i++) proposals_.push_back({genotypes[i], source, parents.empty() ? std::vector<Ticket>{} : parents[i]});
   }
 
   // Evaluated members from elsewhere (another island): each replaces the worst member when it is not worse.
@@ -309,7 +312,7 @@ class Evolution {
     bool has_parent = false;
     bool asked = false, told = false, reused = false;
   };
-  struct Proposal { G genotype; std::string source; };
+  struct Proposal { G genotype; std::string source; std::vector<Ticket> parents; };
 
   Operators<G> ops_;
   Strategy st_;
@@ -607,7 +610,13 @@ class Evolution {
     for (const auto& p : proposals_) {
       if (!accept(p.genotype)) { repeats++; continue; }
       Member<G> m;
-      m.genotype = p.genotype, m.operation = p.source, m.age = 0;
+      m.genotype = p.genotype, m.operation = p.source, m.age = 0, m.parents = p.parents;
+      for (Ticket t : p.parents) {
+        for (const auto& q : s_.population)
+          if (q.ticket == t) m.age = std::max(m.age, q.age);
+        for (const auto& q : s_.archive)
+          if (q.member.ticket == t) m.age = std::max(m.age, q.member.age);
+      }
       add(std::move(m), -1, {}, false);
     }
     proposals_.clear();

@@ -15,6 +15,7 @@ Each record captures one decision that shapes the structure, interfaces or tooli
 | [0004](0004-the-first-modules.md) | The first modules | Accepted, provisionally |
 | [0005](0005-what-the-case-studies-taught.md) | What the case studies taught | Accepted |
 | [0006](0006-an-evolution-assembled-by-stage.md) | An evolution assembled by stage | Accepted |
+| [0007](0007-proposals-with-their-parents.md) | Proposals with their parents: a variation made outside keeps its lineage, age and credit | Accepted |
 
 ## 2. Template
 

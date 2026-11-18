@@ -27,7 +27,7 @@ The operators are the caller's: makers (generators of new genotypes), mutations,
 
 ## 3. Checks
 
-`tests/check_evolution.cpp`, 42 checks: every survival, parent and schedule strategy reaches a known optimum (OneMax, LeadingOnes); aging removes the oldest; the archive admits by its judge and retires by inefficacy, recheck and capacity, each reason kept; proposals credited; runs independent of the order of telling; a resumed run equals one that never stopped; NSGA-II on LOTZ's front; novelty keeps a population diverse; restart on stagnation; genealogies; refusals.
+`tests/check_evolution.cpp`, 44 checks: every survival, parent and schedule strategy reaches a known optimum (OneMax, LeadingOnes); aging removes the oldest; the archive admits by its judge and retires by inefficacy, recheck and capacity, each reason kept; proposals credited, and a proposal made from members kept with its parents (decision 0007); runs independent of the order of telling; a resumed run equals one that never stopped; NSGA-II on LOTZ's front; novelty keeps a population diverse; restart on stagnation; genealogies; refusals.
 
 ## 4. Dependencies and References
 

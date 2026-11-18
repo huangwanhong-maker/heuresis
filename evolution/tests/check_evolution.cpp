@@ -208,6 +208,27 @@ int main() {
     for (const auto& l : e.lineage()) asked = asked || (l.operation == "oracle" && l.survived);
     s.require("a proposal is asked with the next generation, credited to its source, and survives when best",
               stats.proposals.count("oracle") && stats.proposals.at("oracle") == 1 && stats.proposals_surviving.count("oracle") && asked && best_ones(e) == N);
+
+    // A proposal made from members keeps them as its parents.
+    he::Evolution<std::string> f(bits(), st, {}, 37);
+    f.step(onemax);
+    // The best member of the first generation, which (μ + λ) keeps through the next, and another.
+    std::size_t ia = 0;
+    for (std::size_t i = 1; i < f.population().size(); i++)
+      if (ones(f.population()[i].genotype) > ones(f.population()[ia].genotype)) ia = i;
+    const auto a = f.population()[ia].ticket, b = f.population()[ia == 0 ? 1 : 0].ticket;
+    f.propose({std::string(N, '1')}, "model:cross", {{a, b}});
+    f.step(onemax);
+    bool kept = false;
+    for (const auto& l : f.lineage())
+      if (l.operation == "model:cross") kept = l.parents == std::vector<heuresis::search::Ticket>{a, b} && l.survived;
+    bool useful = false;
+    for (const auto& m : f.population())
+      if (m.ticket == a) useful = m.last_useful == f.generation() - 1;
+    s.require("a proposal made from two members records them as its parents, and its survival credits them", kept && useful);
+    bool refused = false;
+    try { f.propose({std::string(N, '0'), std::string(N, '1')}, "model:mutate", {{a}}); } catch (const std::invalid_argument&) { refused = true; }
+    s.require("parents given for some proposals and not others are refused", refused);
   }
 
   // ---- order, state and seed ----
