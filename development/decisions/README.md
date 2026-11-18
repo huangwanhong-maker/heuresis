@@ -14,6 +14,7 @@ Each record captures one decision that shapes the structure, interfaces or tooli
 | [0003](0003-the-search-process-and-its-seams.md) | The search process and its seams | Accepted, provisionally |
 | [0004](0004-the-first-modules.md) | The first modules | Accepted, provisionally |
 | [0005](0005-what-the-case-studies-taught.md) | What the case studies taught | Accepted |
+| [0006](0006-an-evolution-assembled-by-stage.md) | An evolution assembled by stage | Accepted |
 
 ## 2. Template
 

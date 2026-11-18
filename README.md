@@ -53,6 +53,7 @@ The contracts ([decision 0003](development/decisions/0003-the-search-process-and
 | [`models`](models/) | Gaussian-process surrogates on tyche; expected improvement and its kin; Bayesian optimisation | draft |
 | [`landscapes`](landscapes/) | Autocorrelation, fitness–distance correlation, elementary landscapes, local optima and basins | draft |
 | [`analysis`](analysis/) | Runtimes, their distributions over targets, expected running time, profiles, comparisons of algorithms | draft |
+| [`evolution`](evolution/) | One evolutionary loop over any genotype, assembled from a strategy at every stage (scoring, parents, the schedule and credit of operators, survival, novelty, the archive's admission and retirement, termination), with proposals from outside credited to their source, lineage and resumption (decision 0006) | draft |
 | `graphs` | Graphs as genotypes, varied by morphe's double-pushout rewriting under application conditions | planned |
 | `coevolution` | Competitive and cooperative coevolution, archives of opponents | planned |
 | `neuroevolution` | Networks of tyche's `learning` evolved in weights (natural evolution strategies) and in topology (NEAT) | planned |
