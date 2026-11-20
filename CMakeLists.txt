@@ -84,3 +84,4 @@ heuresis_module(populations LIBRARIES heuresis::variation heuresis::selection CH
 heuresis_module(models LIBRARIES heuresis::variation heuresis::selection tyche::spatial tyche::probability calx::optimisation)
 heuresis_module(landscapes LIBRARIES heuresis::variation tyche::descriptive)
 heuresis_module(evolution LIBRARIES heuresis::selection heuresis::multiobjective)
+heuresis_module(spaces LIBRARIES heuresis::variation heuresis::evolution physis::geometry tyche::compositions)

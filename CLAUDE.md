@@ -9,7 +9,7 @@ heuresis is one of the foundation libraries of [The Science Infrastructures](htt
 heuresis implements search and optimisation over spaces too large to enumerate:
 
 - the search process: evaluations, keyed draws, the ask–tell protocol, its drivers and records;
-- representations and their kernels: real boxes, bit strings, integer boxes, permutations, programs, and later graphs;
+- representations and their kernels: real boxes, bit strings, integer boxes, permutations, programs, and later graphs; typed spaces composed by products and choices, with declared units and laws (`spaces`);
 - selection of parents and survivors;
 - evolutionary algorithms, evolution strategies, differential evolution, particle swarms, ant colonies, local search, annealing;
 - search distributions and their samplers, quantum-inspired and quantum search among them;
@@ -67,7 +67,7 @@ heuresis/
 ├── CMakeLists.txt   the project: one header-only target heuresis::<module> per module (heuresis_module); the siblings added once
 ├── search/ · variation/ · selection/ · benchmarks/ · analysis/
 ├── genetic/ · local/ · strategies/ · swarms/ · distributions/ · quantum/ · annealing/
-├── multiobjective/ · diversity/ · programs/ · populations/ · models/ · landscapes/
+├── multiobjective/ · diversity/ · programs/ · populations/ · models/ · landscapes/ · evolution/ · spaces/
 ├── docs/            the theory note
 └── development/     decisions · ideas · release notes · tools (check-tags.mjs)
 ```
@@ -150,4 +150,4 @@ When a change needs a sibling to change as well, commit them in dependency order
 
 ## 9. Current State
 
-As of 2026-11-05, the first eighteen modules are written ([decision 0004](development/decisions/0004-the-first-modules.md)) and revised by what fourteen case studies found ([decision 0005](development/decisions/0005-what-the-case-studies-taught.md)), each with its checks (548 in all): `search`, `variation`, `selection`, `benchmarks`, `genetic`, `local`, `strategies`, `swarms`, `distributions`, `quantum`, `annealing`, `multiobjective`, `diversity`, `programs`, `populations`, `models`, `landscapes` and `analysis`. On 2026-11-18 `evolution` was added ([decision 0006](development/decisions/0006-an-evolution-assembled-by-stage.md)): one loop over any genotype assembled from a strategy at every stage, with an archive that admits by a caller's judge and retires with reasons, proposals from outside, lineage and resumption; 590 checks in all. Since [decision 0007](development/decisions/0007-proposals-with-their-parents.md), a proposal from outside may name the members it was made from: 592 checks. `graphs`, `coevolution`, `neuroevolution`, `noise`, `dynamics` and `configuration` are planned.
+As of 2026-11-05, the first eighteen modules are written ([decision 0004](development/decisions/0004-the-first-modules.md)) and revised by what fourteen case studies found ([decision 0005](development/decisions/0005-what-the-case-studies-taught.md)), each with its checks (548 in all): `search`, `variation`, `selection`, `benchmarks`, `genetic`, `local`, `strategies`, `swarms`, `distributions`, `quantum`, `annealing`, `multiobjective`, `diversity`, `programs`, `populations`, `models`, `landscapes` and `analysis`. On 2026-11-18 `evolution` was added ([decision 0006](development/decisions/0006-an-evolution-assembled-by-stage.md)): one loop over any genotype assembled from a strategy at every stage, with an archive that admits by a caller's judge and retires with reasons, proposals from outside, lineage and resumption; 590 checks in all. Since [decision 0007](development/decisions/0007-proposals-with-their-parents.md), a proposal from outside may name the members it was made from: 592 checks. On 2026-11-20 `spaces` was added ([decision 0008](development/decisions/0008-typed-spaces.md)): typed spaces with their operators and declared units, composed by products, choices and constrained subspaces, held to laws written once for any space; 675 checks. `graphs`, `coevolution`, `neuroevolution`, `noise`, `dynamics` and `configuration` are planned.

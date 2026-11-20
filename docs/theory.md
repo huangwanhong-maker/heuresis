@@ -174,7 +174,29 @@ A Gaussian process prior on f, conditioned on the evaluations, gives at each x a
 
 Maximising EI balances a low mean against a high uncertainty. Bayesian optimisation evaluates its maximiser and conditions again, which suits evaluations that are expensive simulations.
 
-## 14. References
+## 14. Typed Spaces and Geometric Operators
+
+A *space* is a set X with a metric d, a sampler, and a mutation kernel whose support at x lies in a ball B(x, r) (decision 0008). A recombination R is *geometric* when every child c of x and y lies on the metric segment [x, y] = {c : d(x, c) + d(c, y) = d(x, y)}, *pure* when R(x, x) = x, and *respectful* when what x and y share, c keeps (Moraglio 2007; Radcliffe 1994).
+
+**Proposition 14.1 (the product theorem).** Let (Xᵢ, dᵢ) be metric spaces, uᵢ > 0 and wᵢ ≥ 0, and on X = ∏Xᵢ let d(x, y) = Σ wᵢ dᵢ(xᵢ, yᵢ)/uᵢ. If each child part cᵢ lies on [xᵢ, yᵢ], then c lies on [x, y].
+
+*Proof.* d(x, c) + d(c, y) = Σ (wᵢ/uᵢ)(dᵢ(xᵢ, cᵢ) + dᵢ(cᵢ, yᵢ)) = Σ (wᵢ/uᵢ) dᵢ(xᵢ, yᵢ) = d(x, y). ∎
+
+The parts' recombinations may be dependent: the proof uses only where each part's child lies (Moraglio 2007, Thm 9.2.2). A part without recombination contributes one parent's part, which lies on its segment for any metric.
+
+**Units.** The unit uᵢ of a part is its mean distance between independent samples. Then E d(X, Y) = Σ wᵢ exactly, and a weight wᵢ is the share of a typical distance the part contributes. The closed forms used (the module's README, §2.1) follow from: the mean |X − Y| = (n² − 1)/(3n) for uniform integers among n; E(X − Y)² = w²/6 on an interval of width w; a uniform permutation has Hₙ cycles and one fixed point on average, and half its pairs inverted; for independent uniform subsets with independent sizes K, K′, E|A ∩ B| = E[K]E[K′]/n; the angle θ between uniform points of a sphere is symmetric about π/2; the angle of a uniform rotation has density (1 − cos θ)/π, whose mean is π/2 + 2/π; a centred log-ratio coordinate of a uniform composition is log E − mean log E with Var(log E) = π²/6.
+
+**Proposition 14.2 (a choice is a metric).** On a disjoint union of metric spaces (Xⱼ, dⱼ) let d be min(dⱼ/uⱼ, 2C) within a branch and C across branches. Then d is a metric, and where every scaled diameter is at most 2C the truncation never binds.
+
+*Proof.* A truncation of a metric is a metric. For x, z in one branch and y in another, d(x, z) ≤ 2C = d(x, y) + d(y, z). For x, z in different branches, d(x, z) = C ≤ d(x, y) + d(y, z), since at least one of the two terms crosses branches and is C. ∎
+
+**Proposition 14.3 (random keys and Kendall's metric).** Decode a key vector to the order of its coordinates. If c = (1 − t)a + tb with t ∈ [0, 1], then the decoded order of c lies on the Kendall segment between those of a and b.
+
+*Proof.* For items i, j, cᵢ − cⱼ = (1 − t)(aᵢ − aⱼ) + t(bᵢ − bⱼ), which has the sign both parents give when they agree. A pair the parents order alike is then ordered alike by c and adds nothing to either distance; a pair they order differently is ordered by c as one of them, and adds one to exactly one of d(a, c) and d(c, b). Kendall's distance counts discordant pairs, so the two distances sum to d(a, b). ∎
+
+The checks hold each proposition: the first on thirty random products, the second on every triple of a finite choice, the third on decoded keys.
+
+## 15. References
 
 - Baluja, S. (1994), Population-based incremental learning, Technical Report CMU-CS-94-163, Carnegie Mellon University.
 - Baritompa, W. P., Bulger, D. W. and Wood, G. R. (2005), Grover's quantum algorithm applied to global optimization, *SIAM J. Optim.* 15, 1170–1184.
