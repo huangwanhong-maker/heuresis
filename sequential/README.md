@@ -23,7 +23,7 @@ A word is read as an allocation by a **decoder**, and every decoder says what it
 | `mallows.hpp` | Mallows's laws under Kendall's (repeated insertion), Cayley's (Ewens by the Chinese restaurant) and Hamming's (fixed points, then a derangement) metrics, sampled exactly, with their normalisers and expected distances; `fit_mallows` (Borda centre, dispersion by its expected distance) |
 | `adaptivity.hpp` | `adaptivity_bracket`: the best common sequence and clairvoyance over scenarios, which bracket the best policy |
 | `policies.hpp` | Policies against sequences ([decision 0011](../development/decisions/0011-calibrated-surrogates-and-policies-against-sequences.md)): `Instance<S>`; `follow` (the allowed grant of greatest score, step by step); `linear`, `program`; `worth`, `mean_worth`; `train_linear` (CMA-ES), `train_program` (genetic programming); `search_sequence` (CMA-ES over random keys, the deferring rule), `best_order` (every order of a small instance) |
-| `sequential.hpp` | all of the above |
+| `sequential.hpp` | all of the above but `policies.hpp`, which brings in CMA-ES and genetic programming and is included by name |
 
 ### 2.1 Decoders and Their Reach
 

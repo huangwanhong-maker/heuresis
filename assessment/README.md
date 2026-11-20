@@ -21,7 +21,7 @@ Noise is handled where it costs: replicates by a power calculation, spent where 
 | `conformal.hpp` | `Prediction`, `Predictor`, `Interval`; `calibrate(predictor, x, y, α)` → `Conformal`, split conformal intervals with their guarantee [1 − α, 1 − α + 1/(n + 1)], the whole line when n is too small; `gaussian_process(x, y, normalised)`; `screen(candidates, conformal, truth)` → `Screen{assessed, screened, best, best_value, covered, coverage(), intervals}` ([decision 0011](../development/decisions/0011-calibrated-surrogates-and-policies-against-sequences.md)) |
 | `pairwise.hpp` | `bradley_terry` with an order effect, by Hunter's MM iteration; Ford's condition, or a declared prior |
 | `evaluators.hpp` | `Evaluator` (name, version, kind, standing, fidelity, cost, stochastic); `Assessor`: every evaluator on a candidate, cached, standings capped, merged, given to the evolutionary loop by the tiers; `reassess` on fresh replicates |
-| `assessment.hpp` | all of the above |
+| `assessment.hpp` | all of the above but `conformal.hpp`, which brings in the Gaussian process of `models` and is included by name |
 
 ## 3. Checks
 
