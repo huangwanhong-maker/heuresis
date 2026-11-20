@@ -59,7 +59,7 @@ The contracts ([decision 0003](development/decisions/0003-the-search-process-and
 | `graphs` | Graphs as genotypes, varied by morphe's double-pushout rewriting under application conditions | planned |
 | `coevolution` | Competitive and cooperative coevolution, archives of opponents | planned |
 | `neuroevolution` | Networks of tyche's `learning` evolved in weights (natural evolution strategies) and in topology (NEAT) | planned |
-| `noise` | Noisy objectives: resampling, racing, uncertainty handling | planned |
+| [`assessment`](assessment/) | Candidates assessed by evaluators of many kinds: metrics with their role, uncertainty and standing (verified, computed, estimated, proposed); tiers before Pareto, so that a weak kind of evidence never outranks a strong one; replicates by power, races with stated guarantees, common random numbers judged, cascades by fidelity, a cache, the agreement of surrogates, Bradley–Terry for pairwise judgements; an assessor for the evolutionary loop (decision 0010; it replaces the planned `noise`) | draft |
 | `dynamics` | Objectives that change in time: memory, diversity maintenance, tracking | planned |
 | `configuration` | Algorithm configuration and selection: racing (F-race, irace), hyper-heuristics, portfolios | planned |
 

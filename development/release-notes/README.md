@@ -13,7 +13,7 @@ A running record, for readers, of what each commit made possible or better. It i
 
 | Date | Commits |
 |---|---|
-| [2026-11-20](2026-11-20.md) | Orders of grants; typed spaces |
+| [2026-11-20](2026-11-20.md) | Assessment by evaluators of many kinds; orders of grants; typed spaces |
 | [2026-11-18](2026-11-18.md) | Proposals with their parents; an evolution assembled by stage |
 | [2026-11-09](2026-11-09.md) | who made what, said truly |
 | [2026-11-05](2026-11-05.md) | separable CMA-ES at O(n) per sample; what the case studies taught: searches that stop, restart and fail gracefully; heuresis founded: search over spaces too large to enumerate |
