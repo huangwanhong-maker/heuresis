@@ -196,7 +196,23 @@ The parts' recombinations may be dependent: the proof uses only where each part'
 
 The checks hold each proposition: the first on thirty random products, the second on every triple of a finite choice, the third on decoded keys.
 
-## 15. References
+## 15. Orders of Grants
+
+A *grant system* is a state set X, an initial state x₀, and partial maps δ_g : X ⇀ X for grants g in a finite alphabet G (decision 0009). For a word w, δ_w is the composite where defined; w is *feasible* when δ_w(x₀) is defined, and *maximal* when no grant outside w is allowed at δ_w(x₀). Write σ_g(x) = δ_g(x) where defined and x otherwise (the grant skipped), and say g and h *commute at x* when σ_h σ_g(x) = σ_g σ_h(x) and δ_h δ_g(x) is defined exactly when δ_g δ_h(x) is.
+
+**Proposition 15.1 (exchanges).** If g and h commute at every reachable state, then (i) exchanging adjacent g, h in any word leaves the skipping decoder's final state unchanged, and (ii) every word of the trace of a feasible word w is feasible and reaches δ_w(x₀).
+
+*Proof.* (i) The prefix reaches a reachable state x; from it both orders reach the same state by the first condition, and the suffix starts from it alike. (ii) Let u g h v be feasible and x = δ_u(x₀). Both g and h are granted from x in that order, so by the second condition δ_g δ_h(x) is defined, and by the first it equals δ_h δ_g(x); u h g v is feasible and reaches the same state. The trace of w is the class of w under such exchanges, each of which keeps feasibility and the final state. ∎
+
+A search may therefore evaluate a feasible word once per trace (the key of `canonical.hpp`), within the scope in which commutation was established (every reachable state for a finite system decided exactly; the states sampled for a tested one).
+
+**Proposition 15.2 (the deferring decoder's reach).** Over all orders of G, the deferring decoder's outputs are exactly the maximal feasible words of distinct grants.
+
+*Proof.* An output is feasible, since only allowed grants are applied, and maximal, since the decoder stops only when no waiting grant is allowed and every grant not granted is waiting. Conversely let w be maximal and feasible, and order G as w followed by the other grants. At each step the first waiting letter is w's next, which is allowed because w is feasible; after w no waiting grant is allowed, because w is maximal; so the output is w. ∎
+
+The skipping decoder reaches every maximal feasible word by the same order, but may stop short of a maximal word when a grant it dropped becomes allowed later; the checks find both on random systems whose grants consume and produce.
+
+## 16. References
 
 - Baluja, S. (1994), Population-based incremental learning, Technical Report CMU-CS-94-163, Carnegie Mellon University.
 - Baritompa, W. P., Bulger, D. W. and Wood, G. R. (2005), Grover's quantum algorithm applied to global optimization, *SIAM J. Optim.* 15, 1170–1184.

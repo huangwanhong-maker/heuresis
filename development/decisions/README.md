@@ -17,6 +17,7 @@ Each record captures one decision that shapes the structure, interfaces or tooli
 | [0006](0006-an-evolution-assembled-by-stage.md) | An evolution assembled by stage | Accepted |
 | [0007](0007-proposals-with-their-parents.md) | Proposals with their parents: a variation made outside keeps its lineage, age and credit | Accepted |
 | [0008](0008-typed-spaces.md) | Typed spaces: one value tree, a contract of a space with a declared unit, base spaces with closed-form units, the product, the choice and the constrained subspace, laws for every space, diagnostics of a representation | Accepted, provisionally |
+| [0009](0009-orders-of-grants.md) | Orders of grants: grant systems, commutation for allocation tested and declared, evaluation by trace, decoders with their reach, operators by the feature they keep, words with fixed letter counts, Mallows's laws, the adaptivity bracket | Accepted, provisionally |
 
 ## 2. Template
 
