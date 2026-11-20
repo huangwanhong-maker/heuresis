@@ -22,6 +22,7 @@ A word is read as an allocation by a **decoder**, and every decoder says what it
 | `words.hpp` | `WordSpace`: words with fixed letter counts (picking sequences, serial orders with quotas), a space of `spaces` under the least number of adjacent exchanges, with its unit in closed form |
 | `mallows.hpp` | Mallows's laws under Kendall's (repeated insertion), Cayley's (Ewens by the Chinese restaurant) and Hamming's (fixed points, then a derangement) metrics, sampled exactly, with their normalisers and expected distances; `fit_mallows` (Borda centre, dispersion by its expected distance) |
 | `adaptivity.hpp` | `adaptivity_bracket`: the best common sequence and clairvoyance over scenarios, which bracket the best policy |
+| `policies.hpp` | Policies against sequences ([decision 0011](../development/decisions/0011-calibrated-surrogates-and-policies-against-sequences.md)): `Instance<S>`; `follow` (the allowed grant of greatest score, step by step); `linear`, `program`; `worth`, `mean_worth`; `train_linear` (CMA-ES), `train_program` (genetic programming); `search_sequence` (CMA-ES over random keys, the deferring rule), `best_order` (every order of a small instance) |
 | `sequential.hpp` | all of the above |
 
 ### 2.1 Decoders and Their Reach
@@ -57,6 +58,8 @@ A word is read as an allocation by a **decoder**, and every decoder says what it
 - words with fixed letter counts: every law of `spaces`; the distance as breadth-first search finds it on all 900 pairs; the unit as the mean over every pair; an evolution of a picking sequence finds the brute-force optimum of the least utility;
 - on 50 random stochastic knapsacks, best sequence ≤ best adaptive policy (by dynamic programming) ≤ clairvoyance, and the adaptivity gap at most 4;
 - refusals.
+
+`tests/check_policies.cpp`, 10 checks: following a policy decodes a feasible word; a constant score follows the index order; a threshold grants nothing; on knapsacks whose price rises with every grant, no policy or searched sequence above each held-out instance's enumerated best; sequences searched per instance reaching 93.5% to 98.9% of the best with 10 to 300 evaluations, a linear policy learned once 95.5% and a program 95.3% on instances they never saw, generalising within half a per cent of their training share: the policy beaten by a sequence searched with 30 evaluations per instance, and beating one searched with 10.
 
 ## 4. Dependencies
 

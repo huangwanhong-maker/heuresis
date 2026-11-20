@@ -19,6 +19,7 @@ Each record captures one decision that shapes the structure, interfaces or tooli
 | [0008](0008-typed-spaces.md) | Typed spaces: one value tree, a contract of a space with a declared unit, base spaces with closed-form units, the product, the choice and the constrained subspace, laws for every space, diagnostics of a representation | Accepted, provisionally |
 | [0009](0009-orders-of-grants.md) | Orders of grants: grant systems, commutation for allocation tested and declared, evaluation by trace, decoders with their reach, operators by the feature they keep, words with fixed letter counts, Mallows's laws, the adaptivity bracket | Accepted, provisionally |
 | [0010](0010-assessment.md) | Assessment by evaluators of many kinds: metrics with their standing and uncertainty, tiers before Pareto, a metric never stronger than its evaluator, races, cascades, a cache, surrogate agreement, Bradley–Terry with an order effect; it replaces the planned `noise` | Accepted, provisionally |
+| [0011](0011-calibrated-surrogates-and-policies-against-sequences.md) | Surrogates with calibrated intervals (split conformal, a Gaussian process plain or normalised, screening that keeps every candidate that could be best) and policies against sequences (a rule followed through a grant system, learned once for a family by CMA-ES or genetic programming, set beside each instance's searched word and best order) | Accepted, provisionally |
 
 ## 2. Template
 

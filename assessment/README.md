@@ -18,6 +18,7 @@ Noise is handled where it costs: replicates by a power calculation, spent where 
 | `tiers.hpp` | `Tiering`; `to_evaluation` (only what may select becomes an objective, only what may bind a constraint); `tiered` and `tiered_ranking` |
 | `noise.hpp` | `summarise`; `replicates_for` (normal quantiles from tyche); `in_doubt`; `race` under Hoeffding's or the empirical Bernstein bound; `common_numbers` |
 | `cascade.hpp` | `cascade` by fidelity with its guarantee; `AssessmentCache` by input, evaluator, version, fidelity and stream; `Agreement` of a surrogate (Kendall's τ, RMSE, coverage) and `Trust` |
+| `conformal.hpp` | `Prediction`, `Predictor`, `Interval`; `calibrate(predictor, x, y, α)` → `Conformal`, split conformal intervals with their guarantee [1 − α, 1 − α + 1/(n + 1)], the whole line when n is too small; `gaussian_process(x, y, normalised)`; `screen(candidates, conformal, truth)` → `Screen{assessed, screened, best, best_value, covered, coverage(), intervals}` ([decision 0011](../development/decisions/0011-calibrated-surrogates-and-policies-against-sequences.md)) |
 | `pairwise.hpp` | `bradley_terry` with an order effect, by Hunter's MM iteration; Ford's condition, or a declared prior |
 | `evaluators.hpp` | `Evaluator` (name, version, kind, standing, fidelity, cost, stochastic); `Assessor`: every evaluator on a candidate, cached, standings capped, merged, given to the evolutionary loop by the tiers; `reassess` on fresh replicates |
 | `assessment.hpp` | all of the above |
@@ -37,9 +38,11 @@ Noise is handled where it costs: replicates by a power calculation, spent where 
 - Bradley–Terry recovers known log-strengths within 0.1 and the advantage of being shown first from 8,000 judgements, its likelihood rising at every step; a lopsided set refused, then answered with a prior;
 - an evolution assessed by a computed loss, a noisy estimate and an adversarial model finds the computed optimum; re-assessed, the estimate carries its error and the model's opinion stays proposed though it claimed to be verified.
 
+`tests/check_conformal.cpp`, 8 checks: the order statistic exactly; the whole line when n is too small; over 200 replications the coverage of a Gaussian process's split conformal intervals within the theorem's band, plain and normalised; normalised widths narrower where the noise is small; a screen keeping the true minimiser while assessing 48 of 200 candidates; a predictor calibrated where it was right covering 0.52 of what it screened, and saying so.
+
 ## 4. Dependencies
 
-heuresis's `search` (evaluations and keyed streams), `multiobjective` (non-dominated sorting), `spaces` (values and their keys); tyche's `probability` (normal quantiles); calx's random streams.
+heuresis's `search` (evaluations and keyed streams), `multiobjective` (non-dominated sorting), `spaces` (values and their keys), `models` (the Gaussian process of a surrogate); tyche's `probability` (normal quantiles); calx's random streams.
 
 ## 5. References
 

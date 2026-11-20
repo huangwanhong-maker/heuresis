@@ -85,5 +85,13 @@ heuresis_module(models LIBRARIES heuresis::variation heuresis::selection tyche::
 heuresis_module(landscapes LIBRARIES heuresis::variation tyche::descriptive)
 heuresis_module(evolution LIBRARIES heuresis::selection heuresis::multiobjective)
 heuresis_module(spaces LIBRARIES heuresis::variation heuresis::evolution physis::geometry tyche::compositions)
-heuresis_module(sequential LIBRARIES heuresis::spaces morphe::formal)
-heuresis_module(assessment LIBRARIES heuresis::spaces heuresis::multiobjective tyche::probability)
+heuresis_module(sequential LIBRARIES heuresis::spaces morphe::formal heuresis::strategies heuresis::programs)
+if(HEURESIS_CHECKS)
+  # Policies against sequences (decision 0011): a second check program of sequential.
+  calx_add_check(check_heuresis_policies SOURCES sequential/tests/check_policies.cpp LIBRARIES heuresis::sequential calx::random)
+endif()
+heuresis_module(assessment LIBRARIES heuresis::spaces heuresis::multiobjective tyche::probability heuresis::models)
+if(HEURESIS_CHECKS)
+  # Surrogates with calibrated intervals (decision 0011): a second check program of assessment.
+  calx_add_check(check_heuresis_conformal SOURCES assessment/tests/check_conformal.cpp LIBRARIES heuresis::assessment calx::random)
+endif()
